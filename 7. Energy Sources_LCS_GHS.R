@@ -5,6 +5,7 @@ library(Hmisc)
 library(openxlsx)
 library(ggplot2)
 library(stringr)
+library(gridExtra)
 
 # Differences in energy supply between LCS 2014/2015 and GHS 2021 - Visualization ####
 
@@ -145,8 +146,8 @@ colors_elec_source <- c('#6a3d9a', '#FFC125', '#A61212', '#620F0F')
 household_information_lcs3 <- household_information_lcs %>%
   filter(!cookingsource == 99) %>% #unspecified
   filter(!cookingsource == 11) %>% #no access
-  mutate(cookingsource = case_when (cookingsource == 1 ~'Electricity from Mains',
-                                    cookingsource == 2 ~'Other Source of Electricity', #e.g. generator, etc.
+  mutate(cookingsource = case_when (cookingsource == 1 ~'Electricity Mains',
+                                    cookingsource == 2 ~'Other Electricity', #e.g. generator, etc.
                                     cookingsource == 3 ~'Gas',
                                     cookingsource == 4 ~'Paraffin',
                                     cookingsource == 5 ~'Wood',
@@ -157,12 +158,12 @@ household_information_lcs3 <- household_information_lcs %>%
 
 household_information_lcs3$cookingsource <- factor(household_information_lcs3$cookingsource, 
                                                    levels = c('Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 
-                                                              'Gas', 'Coal', 'Wood', 'Other Source of Electricity','Electricity from Mains'))
+                                                              'Gas', 'Coal', 'Wood', 'Other Electricity','Electricity Mains'))
 
 #GHS
 household_information_ghs3 <- household_information_ghs %>% 
-  mutate(cookingsource = case_when (cookingsource == 1 ~'Electricity from Mains',
-                                    cookingsource == 2 ~'Other Source of Electricity', #e.g. generator, etc.
+  mutate(cookingsource = case_when (cookingsource == 1 ~'Electricity Mains',
+                                    cookingsource == 2 ~'Other Electricity', #e.g. generator, etc.
                                     cookingsource == 3 ~'Gas',
                                     cookingsource == 4 ~'Paraffin',
                                     cookingsource == 5 ~'Wood',
@@ -173,7 +174,7 @@ household_information_ghs3 <- household_information_ghs %>%
 
 household_information_ghs3$cookingsource <- factor(household_information_ghs3$cookingsource, 
                                                    levels = c('Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 
-                                                              'Gas', 'Coal', 'Wood','Other Source of Electricity', 'Electricity from Mains'))
+                                                              'Gas', 'Coal', 'Wood','Other Electricity', 'Electricity  Mains'))
 
 colors_cooking_source <- c('#b2df8a', '#FFC125', '#6666FF', '#b15928', '#1f78b4', '#030303', '#33a02c','#A61212', '#620F0F')
 
@@ -183,8 +184,8 @@ colors_cooking_source <- c('#b2df8a', '#FFC125', '#6666FF', '#b15928', '#1f78b4'
 #LCS
 household_information_lcs4 <- household_information_lcs %>%
   filter(!lightingsource == 99) %>% #unspecified
-  mutate(lightingsource = case_when (lightingsource == 1 ~'Electricity from Mains',
-                                     lightingsource == 2 ~'Other Source of Electricity', #e.g. generator, etc.
+  mutate(lightingsource = case_when (lightingsource == 1 ~'Electricity Mains',
+                                     lightingsource == 2 ~'Other Electricity', #e.g. generator, etc.
                                      lightingsource == 3 ~'Gas',
                                      lightingsource == 4 ~'Paraffin', #5,6,8 not included in data
                                      lightingsource == 7 ~'Candles',
@@ -193,13 +194,13 @@ household_information_lcs4 <- household_information_lcs %>%
 
 household_information_lcs4$lightingsource <- factor(household_information_lcs4$lightingsource, 
                                                     levels = c('Other', 'Solar Energy', 'Candles', 'Paraffin', 'Gas',
-                                                               'Other Source of Electricity','Electricity from Mains'))
+                                                               'Other Electricity','Electricity Mains'))
 
 #GHS
 household_information_ghs4 <- household_information_ghs %>%
   filter(!lightingsource == 10)%>% #none
-  mutate(lightingsource = case_when (lightingsource == 1 ~'Electricity from Mains',
-                                     lightingsource == 2 ~'Other Source of Electricity',
+  mutate(lightingsource = case_when (lightingsource == 1 ~'Electricity Mains',
+                                     lightingsource == 2 ~'Other Electricity',
                                      lightingsource == 3 ~'Gas',
                                      lightingsource == 4 ~'Paraffin', #5,6,8 not included in data
                                      lightingsource == 7 ~'Candles',
@@ -208,7 +209,7 @@ household_information_ghs4 <- household_information_ghs %>%
     
 household_information_ghs4$lightingsource <- factor(household_information_ghs4$lightingsource, 
                                                     levels = c('Other', 'Solar Energy', 'Candles', 'Paraffin', 'Gas',
-                                                                'Other Source of Electricity','Electricity from Mains'))
+                                                                'Other Electricity','Electricity Mains'))
 
 colors_lighting_source <- c('#b2df8a', '#FFC125', '#a6cee3', '#6666FF', '#1f78b4','#A61212', '#620F0F')
 
@@ -218,8 +219,8 @@ colors_lighting_source <- c('#b2df8a', '#FFC125', '#a6cee3', '#6666FF', '#1f78b4
 #LCS
 household_information_lcs5 <- household_information_lcs %>%
   filter(!heatingsourcewater == 99) %>% #unspecified
-  mutate(heatingsourcewater = case_when (heatingsourcewater == 1 ~'Electricity from Mains',
-                                         heatingsourcewater == 2 ~'Other Source of Electricity', #e.g. generator, etc.
+  mutate(heatingsourcewater = case_when (heatingsourcewater == 1 ~'Electricity Mains',
+                                         heatingsourcewater == 2 ~'Other Electricity', #e.g. generator, etc.
                                          heatingsourcewater == 3 ~'Gas',
                                          heatingsourcewater == 4 ~'Paraffin',
                                          heatingsourcewater == 5 ~'Wood',
@@ -231,13 +232,13 @@ household_information_lcs5 <- household_information_lcs %>%
 
 household_information_lcs5$heatingsourcewater <- factor(household_information_lcs5$heatingsourcewater, 
                                                         levels = c('No Access', 'Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 'Gas',
-                                                                   'Coal', 'Wood','Other Source of Electricity', 'Electricity from Mains'))
+                                                                   'Coal', 'Wood','Other Electricity', 'Electricity Mains'))
 
 #GHS
 household_information_ghs5 <- household_information_ghs %>% 
   filter(!heatingsourcewater == 99) %>% #unspecified
-  mutate(heatingsourcewater = case_when (heatingsourcewater == 1 ~'Electricity from Mains',
-                                         heatingsourcewater == 2 ~'Other Source of Electricity',
+  mutate(heatingsourcewater = case_when (heatingsourcewater == 1 ~'Electricity Mains',
+                                         heatingsourcewater == 2 ~'Other Electricity',
                                          heatingsourcewater == 3 ~'Gas',
                                          heatingsourcewater == 4 ~'Paraffin',
                                          heatingsourcewater == 5 ~'Wood',
@@ -249,7 +250,7 @@ household_information_ghs5 <- household_information_ghs %>%
 
 household_information_ghs5$heatingsourcewater <- factor(household_information_ghs5$heatingsourcewater, 
                                                        levels = c('No Access', 'Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 'Gas',
-                                                                  'Coal', 'Wood','Other Source of Electricity', 'Electricity from Mains'))
+                                                                  'Coal', 'Wood','Other Electricity', 'Electricity Mains'))
 
 colors_wheating_source <- c('#606060', '#b2df8a', '#FFC125', '#6666FF', '#b15928', '#1f78b4', '#030303', '#33a02c','#A61212', '#620F0F')
 
@@ -259,8 +260,8 @@ colors_wheating_source <- c('#606060', '#b2df8a', '#FFC125', '#6666FF', '#b15928
 #LCS
 household_information_lcs6 <- household_information_lcs %>%
   filter(!heatingsourcespace == 99) %>% #unspecified
-  mutate(heatingsourcespace = case_when (heatingsourcespace == 1 ~'Electricity from Mains',
-                                         heatingsourcespace == 2 ~'Other Source of Electricity', #e.g. generator, etc.
+  mutate(heatingsourcespace = case_when (heatingsourcespace == 1 ~'Electricity Mains',
+                                         heatingsourcespace == 2 ~'Other Electricity', #e.g. generator, etc.
                                          heatingsourcespace == 3 ~'Gas',
                                          heatingsourcespace == 4 ~'Paraffin',
                                          heatingsourcespace == 5 ~'Wood',
@@ -272,12 +273,12 @@ household_information_lcs6 <- household_information_lcs %>%
 
 household_information_lcs6$heatingsourcespace <- factor(household_information_lcs6$heatingsourcespace, 
                                                         levels = c('No Access', 'Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 'Gas',
-                                                                   'Coal', 'Wood','Other Source of Electricity', 'Electricity from Mains'))
+                                                                   'Coal', 'Wood','Other Electricity', 'Electricity Mains'))
 
 #GHS
 household_information_ghs6 <- household_information_ghs %>% 
-  mutate(heatingsourcespace = case_when (heatingsourcespace == 1 ~'Electricity from Mains',
-                                         heatingsourcespace == 2 ~'Other Source of Electricity',
+  mutate(heatingsourcespace = case_when (heatingsourcespace == 1 ~'Electricity Mains',
+                                         heatingsourcespace == 2 ~'Other Electricity',
                                          heatingsourcespace == 3 ~'Gas',
                                          heatingsourcespace == 4 ~'Paraffin',
                                          heatingsourcespace == 5 ~'Wood',
@@ -289,7 +290,7 @@ household_information_ghs6 <- household_information_ghs %>%
 
 household_information_ghs6$heatingsourcespace <- factor(household_information_ghs6$heatingsourcespace, 
                                                         levels = c('No Access', 'Other', 'Solar Energy', 'Paraffin', 'Animal Dung', 'Gas',
-                                                                   'Coal', 'Wood','Other Source of Electricity', 'Electricity from Mains'))
+                                                                   'Coal', 'Wood','Other Electricity', 'Electricity Mains'))
 
 colors_sheating_source <- c('#606060', '#b2df8a', '#FFC125', '#6666FF', '#b15928', '#1f78b4', '#030303', '#33a02c','#A61212', '#620F0F')
 
@@ -309,18 +310,20 @@ elec_access_share_lcs <- transform(elec_access_share_lcs, perc = ave(amount,prov
 elec_access_share_lcs <- elec_access_share_lcs %>%
   select(province, electricitycon, perc)
 
-ggplot(elec_access_share_lcs, aes(x = str_wrap(province, width = 10), y = (perc*100), fill = electricitycon)) +
+p1 <- ggplot(elec_access_share_lcs, aes(x = str_wrap(province, width = 10), y = (perc*100), fill = electricitycon)) +
   geom_bar(position="stack", stat="identity", color="black") +
   scale_fill_manual(values = colors_elec_access)+
-  labs (x = "Provinces", y = "Share of Electricity Access (%)", title = "Share of Electricity Access for different Provinces - LCS 2014/15", fill = "Electricity Access") +
+  labs (x = "Provinces", y = "Share of Electricity Access (%)", title = "Share of Electricity Access for different Provinces", fill = "Electricity Access") +
   scale_y_continuous(breaks = seq(0, 100, 10), minor_breaks = seq(0, 100, 5), labels = function(x) paste0(x, "%"))+
   geom_hline(yintercept = seq(10, 90, 10), linetype="dotted", color = "black") +
   theme(axis.text = element_text(size = 12), 
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 15),
         plot.subtitle = element_text(size = 12),
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+        plot.margin = unit(c(0.1, 0.3, 0.1, 0.3), units = "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+print(p1)
 
 #GHS
 elec_access_share_ghs <- household_information_ghs1 %>%
@@ -371,7 +374,7 @@ ggplot(elec_source_share_lcs, aes(x = str_wrap(province, width = 10), y = (perc*
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 15),
         plot.subtitle = element_text(size = 12),
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"),
+        plot.margin = unit(c(0.1, 0.3, 0.1, 0.3), units = "cm"),
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
 
 #GHS
@@ -412,18 +415,20 @@ cooking_source_share_lcs <- transform(cooking_source_share_lcs, perc = ave(amoun
 cooking_source_share_lcs <- cooking_source_share_lcs %>%
   select(province, cookingsource, perc)
 
-ggplot(cooking_source_share_lcs, aes(x = str_wrap(province, width = 10), y = (perc*100), fill = cookingsource)) +
+p3 <- ggplot(cooking_source_share_lcs, aes(x = str_wrap(province, width = 10), y = (perc*100), fill = cookingsource)) +
   geom_bar(position="stack", stat="identity", color="black") +
   scale_fill_manual(values = colors_cooking_source)+
-  labs (x = "Provinces", y = "Share of Cooking Fuel (%)", title = "Share of Cooking Fuel for different Provinces - LCS 2014/15", fill = "Cooking Fuel") +
+  labs (x = "Provinces", y = "Share of Cooking Fuel (%)", title = "Share of Cooking Fuel for different Provinces", fill = "Cooking Fuel") +
   scale_y_continuous(breaks = seq(0, 100, 10), minor_breaks = seq(0, 100, 5), labels = function(x) paste0(x, "%"))+
   geom_hline(yintercept = seq(10, 90, 10), linetype="dotted", color = "black") +
   theme(axis.text = element_text(size = 12), 
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 15),
         plot.subtitle = element_text(size = 12),
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"),
-        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) 
+        plot.margin = unit(c(0.1, 0.3, 0.1, 0.3), units = "cm"),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+print(p3)
 
 #GHS
 cooking_source_share_ghs <- household_information_ghs3 %>%
@@ -618,19 +623,20 @@ elec_access_share_lcs <- transform(elec_access_share_lcs, perc = ave(amount,Inco
 elec_access_share_lcs <- elec_access_share_lcs %>%
   select(Income_Group_10, electricitycon, perc)
 
-ggplot(elec_access_share_lcs, aes(x = factor(Income_Group_10, levels = 1:10), y = (perc*100), fill = electricitycon)) +
+p2 <- ggplot(elec_access_share_lcs, aes(x = factor(Income_Group_10, levels = 1:10), y = (perc*100), fill = electricitycon)) +
   geom_bar(position="stack", stat="identity", color="black") +
   scale_fill_manual(values = colors_elec_access)+
-  scale_x_discrete(labels = c("1 \n Poorest \n 10 Percent", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n Richest \n 10 Percent")) + 
-  labs (x = "Expenditure Decile", y = "Share of Electricity Access (%)", title = "Share of Electricity Access by Expenditures - LCS 2014/15", fill = "Electricity Access") +
+  scale_x_discrete(labels = c("1 \n \n Poorest \n 10 Percent\n", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n \n Richest \n 10 Percent\n")) + 
+  labs (x = "Expenditure Decile", y = "Share of Electricity Access (%)", title = "Share of Electricity Access by Expenditures", fill = "Electricity Access") +
   scale_y_continuous(breaks = seq(0, 100, 10), minor_breaks = seq(0, 100, 5), labels = function(x) paste0(x, "%"))+
   geom_hline(yintercept = seq(10, 90, 10), linetype="dotted", color = "black") +
   theme(axis.text = element_text(size = 12), 
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 15),
         plot.subtitle = element_text(size = 12),
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))
+        plot.margin = unit(c(0.1, 0.3, 0.1, 0.3), units = "cm"))
 
+print(p2)
 
 
 elec_source_share_lcs <- household_information_lcs2 %>%
@@ -668,18 +674,54 @@ cooking_source_share_lcs <- transform(cooking_source_share_lcs, perc = ave(amoun
 cooking_source_share_lcs <- cooking_source_share_lcs %>%
   select(Income_Group_10, cookingsource, perc)
 
-ggplot(cooking_source_share_lcs, aes(x = factor(Income_Group_10, levels = 1:10), y = (perc * 100), fill = cookingsource)) +
+p4 <- ggplot(cooking_source_share_lcs, aes(x = factor(Income_Group_10, levels = 1:10), y = (perc * 100), fill = cookingsource)) +
   geom_bar(position = "stack", stat = "identity", color = "black") +
   scale_fill_manual(values = colors_cooking_source) +
-  labs(x = "Expenditure Decile", y = "Share of Cooking Fuel (%)", title = "Share of Cooking Fuel by Expenditures - LCS 2014/15", fill = "Cooking Fuel") +
-  scale_x_discrete(labels = c("1 \n Poorest \n 10 Percent", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n Richest \n 10 Percent")) + 
+  labs(x = "Expenditure Decile", y = "Share of Cooking Fuel (%)", title = "Share of Cooking Fuel by Expenditures", fill = "Cooking Fuel") +
+  scale_x_discrete(labels = c("1 \n \n Poorest \n 10 Percent\n", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n \n Richest \n 10 Percent\n")) + 
   scale_y_continuous(breaks = seq(0, 100, 10), minor_breaks = seq(0, 100, 5), labels = function(x) paste0(x, "%")) +
   geom_hline(yintercept = seq(10, 90, 10), linetype = "dotted", color = "black") +
   theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 15),
         plot.subtitle = element_text(size = 12),
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))
+        plot.margin = unit(c(0.1, 0.3, 0.1, 0.3), units = "cm"))
+
+plot(p4)
+
+
+
+# Plot 4x4
+legend12 <- cowplot::get_legend(p1) 
+legend34 <- cowplot::get_legend(p3) 
+
+p1 <- p1 + theme(legend.position = "none")
+p2 <- p2 + theme(legend.position = "none")
+p3 <- p3 + theme(legend.position = "none")
+p4 <- p4 + theme(legend.position = "none")
+
+p1 <- p1 + theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), "cm"))
+p2 <- p2 + theme(plot.margin = unit(c(0.5, 0.5, 0.5, 1), "cm"))
+p3 <- p3 + theme(plot.margin = unit(c(1, 1, 0.5, 0.5), "cm"))
+p4 <- p4 + theme(plot.margin = unit(c(1, 0.5, 0.5, 1), "cm"))
+
+layout_matrix <- rbind(c(1, 2, 3),
+                       c(4, 5, 6))
+heights_vector <- c(1.6, 1.7)
+widths_vector <- c(2, 2, 0.5)
+
+png("share_fuels.png", family = "sans", units = "cm",
+    width = 40, height = 35, pointsize = 18, res = 300)
+
+grid.arrange(p1, p2, legend12, p3, p4, legend34, 
+             layout_matrix = layout_matrix,
+             heights = heights_vector,
+             widths = widths_vector)
+
+dev.off()
+
+
+
 
 
 

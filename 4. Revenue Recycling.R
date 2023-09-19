@@ -42,11 +42,26 @@ hh_final_0n$Income_Group_5 <- hh_final_0n$Income_Group_5 *(-1)
 hh_final_0n$category <- "burden_CO2_national"
 
 
+
+####
+
+# Weighted sum of CO2 expenses
+weighted_sum_CO2_expenses = sum(hh_final$exp_CO2_national * hh_final$hh_weights)
+
+# Total weighted population
+total_weighted_population = sum(hh_final$hh_size * hh_final$hh_weights)
+
+# Per-capita transfer amount
+CP_per_capita = weighted_sum_CO2_expenses / total_weighted_population
+
+
+####
+
 ## Lump Sum ##
-CP_per_capita = sum(hh_final$exp_CO2_national) / nrow(hh_final)
+CP_per_hh = sum(hh_final$exp_CO2_national) / nrow(hh_final)
 
 #hh_final$burden_CO2_national_revenue <- (hh_final$exp_CO2_national - CP_per_capita) / hh_final$hh_expenditures_USD_2014
-hh_final$burden_CO2_national_revenue100 <- ((hh_final$exp_CO2_national - CP_per_capita) / hh_final$hh_expenditures_USD_2014) *(-1)
+hh_final$burden_CO2_national_revenue100 <- ((hh_final$exp_CO2_national - (CP_per_capita*hh_final$hh_size)) / hh_final$hh_expenditures_USD_2014) *(-1)
 
 hh_final_1 <- hh_final %>%
   group_by(Income_Group_5)%>%
@@ -91,29 +106,37 @@ hh_rr22$category <- factor(hh_elec_sub2$category, levels = c("burden_CO2_nationa
 
  
 #plot
-vs <- ggplot(hh_rr2, aes(x = factor(Income_Group_5), fill = category))+
+vs <- ggplot(hh_rr2, aes(x = factor(Income_Group_5), fill = category)) +
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
-  theme_bw()+
-  xlab("Expenditure Quintiles")+
-  ylab("Net Income Gain (% of total expenditures)")+
-  geom_point(aes(y = mean, group=category), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
-  scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(-0.21,0.62))+
-  ggtitle("Revenue Recycling with National Carbon Tax of US$ 30t/CO2")+
-  scale_fill_manual(values=c("#9b2226", "#00BFC4", "#669999"), labels = c("Total Burden", "Full Lump Sum","Full CO2 Tax Electricity Compensation")) + 
-  guides(fill = guide_legend(title = NULL)) +  # remove legend title
-  theme(axis.text = element_text(size = 12), 
+  theme_bw() +
+  xlab("Expenditure Quintiles") +
+  ylab("Net Income Gain (% of total expenditures)") +
+  geom_point(aes(y = mean, group = category), shape = 23, size = 1.5, fill = "black", position = position_dodge(width = 0.5)) +
+  scale_y_continuous(breaks = seq(-0.2, 0.8, by = 0.1), labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
+  scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent")) +
+  coord_cartesian(ylim = c(-0.21, 0.81)) +
+  ggtitle("Revenue Recycling with National Carbon Tax of US$ 30t/CO2") +
+  scale_fill_manual(values = c("#9b2226", "#00BFC4", "#669999"), labels = c("Total Burden", "Full Lump Sum", "Full CO2 Tax Electricity Compensation")) +
+  guides(fill = guide_legend(title = NULL)) +
+  theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 16),
         plot.subtitle = element_text(size = 16),
         legend.position = "bottom",
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
-  labs(colour = "")   
+        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm")) +
+  labs(colour = "")
 
-vs + geom_hline(yintercept=0)
+vs <- vs + geom_hline(yintercept = 0)
 
 
+# Plot
+#plot(vs)
+
+# Save
+png("Revenue_Recycling.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(vs)
+dev.off()
 
 
 # dataframe

@@ -42,7 +42,7 @@ summary_expenditures_categories <- hh_final %>%
 
 summary_expenditures_categories$percentage <- summary_expenditures_categories$percentage * 100
 
-ggplot(summary_expenditures_categories, aes(x = Income_Group_10, y = percentage, fill = category)) +
+p <- ggplot(summary_expenditures_categories, aes(x = Income_Group_10, y = percentage, fill = category)) +
   geom_bar(position="stack", stat="identity") +
   theme_bw()+
   labs (x = "Expenditure Deciles", y = "Expenditure Share (%)", title = "Share of Expenditures for different Categories", fill = "Expenditure Category") +
@@ -54,21 +54,31 @@ ggplot(summary_expenditures_categories, aes(x = Income_Group_10, y = percentage,
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 16),
         plot.subtitle = element_text(size = 14),
+        legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))
+
+# Plot
+print(p)
+
+# Save
+png("ExpenditureCategoeries.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 # dataframe
 pivoted_df = pivot_wider(summary_expenditures_categories, names_from = category, values_from = percentage)
 
 # check and write
 print(pivoted_df)
-write.csv(pivoted_df, "pivoted_categories_share.csv", row.names = FALSE)
+write.csv(pivoted_df, "categories_share.csv", row.names = FALSE)
 
 
 
 ## Distribution CO2 footprint ####
 
 # Barplot #not used
-ggplot(hh_final, aes(x = CO2_t_national)) +
+p <- ggplot(hh_final, aes(x = CO2_t_national)) +
   geom_histogram(aes(y = (..density..)*1000), binwidth = 10, fill = "#ca6702", color ="black", position = position_nudge(x=5))+
   geom_vline(xintercept = mean(hh_final$CO2_t_national), 
              color = "black", linetype = "dashed", size = 0.5) +
@@ -84,6 +94,15 @@ ggplot(hh_final, aes(x = CO2_t_national)) +
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"),
         panel.grid.major = element_line(colour = "lightgray", linetype = "dotted"),
         panel.grid.minor = element_blank())
+
+# Plot
+#plot(p)
+
+# Save
+png("Footprint_Distribution.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 
 # Boxplot #not used
@@ -114,24 +133,33 @@ ggplot(hh_final, aes(x = CO2_t_national)) +
 
 
 ## BAR CHART national carbon footprint ####
-CO2_tons$Income_Group_10 <- factor(CO2_tons$Income_Group_10)
-
 CO2_tons <- hh_final %>% 
   group_by(Income_Group_10) %>%
   summarise(t_national = mean(CO2_t_national))
 
-ggplot(CO2_tons, aes(x = Income_Group_10, y = t_national)) +
+CO2_tons$Income_Group_10 <- factor(CO2_tons$Income_Group_10)
+
+p <- ggplot(CO2_tons, aes(x = Income_Group_10, y = t_national)) +
   geom_bar(stat = "identity", fill="#ca6702", color="black") +
   theme_bw()+
   labs(title = "Carbon Footprint per Household", x = "Expenditure Deciles", y = "Mean Carbon Footprint (tCO2/household)") +
   #scale_x_discrete(limits = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  scale_x_discrete(limits = c("1 \n Poorest \n 10 Percent", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n Richest \n 10 Percent")) + 
+  scale_x_discrete(labels = c("1 \n Poorest \n 10 Percent", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n Richest \n 10 Percent")) + 
   theme(axis.text = element_text(size = 12), 
         axis.title = element_text(size = 12),
         plot.title = element_text(size = 16),
         plot.subtitle = element_text(size = 14),
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))
+
+# Plot
+print(p)
+
+# Save
+png("Carbon_Footprint.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 summary(hh_final$CO2_t_national)
 
@@ -175,7 +203,7 @@ hh_final_1 <- hh_final %>%
     mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
   ungroup()
 
-ggplot(hh_final_1, aes(x = factor(Income_Group_10), fill=""))+
+p <- ggplot(hh_final_1, aes(x = factor(Income_Group_10), fill=""))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.5) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -194,6 +222,16 @@ ggplot(hh_final_1, aes(x = factor(Income_Group_10), fill=""))+
         plot.subtitle = element_text(size = 14),
         legend.position = "none",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))
+
+
+# Plot
+#plot(p)
+
+# Save
+png("Additional Costs.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 # dataframe
 data <- hh_final_1 %>%
@@ -218,7 +256,7 @@ hh_final_2 <- hh_final %>%
     mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
   ungroup()
 
-ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = urban_1))+
+p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = urban_1))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -237,6 +275,15 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = urban_1))+
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
+
+# Plot
+print(p)
+
+# Save
+png("Residential_Areas.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 # dataframe
 data <- hh_final_2 %>%
@@ -259,7 +306,7 @@ hh_final_2 <- hh_final %>%
     mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
   ungroup()
 
-ggplot(hh_final_2, aes(x = factor(Income_Group_3), fill = province))+
+p <- ggplot(hh_final_2, aes(x = factor(Income_Group_3), fill = province))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Tertiles")+
@@ -278,6 +325,16 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_3), fill = province))+
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
+
+
+# Plot
+#plot(p)
+
+# Save
+png("Province.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
 
 # dataframe
 data <- hh_final_2 %>%
@@ -336,7 +393,7 @@ hh_final_2 <- hh_final %>%
     mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
   ungroup()
 
-ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = ethnicity_hhh))+
+p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = ethnicity_hhh))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -356,6 +413,15 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = ethnicity_hhh))+
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
 
+# Plot
+print(p)
+
+# Save
+png("Ethnicity.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
+
   # dataframe
 data <- hh_final_2 %>%
   select(Income_Group_5, mean, ethnicity_hhh)%>%
@@ -363,37 +429,37 @@ data <- hh_final_2 %>%
 write.csv(data, "Additional_costs_eth.csv", row.names = FALSE)
 
 
-# ethnicity in general - not used
-hh_final$ethnicity_hhh <- as.factor(hh_final$ethnicity_hhh)
-
-hh_final_et <- hh_final %>%
-  group_by(ethnicity_hhh)%>%
-  summarise(
-    y5  = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.05),
-    y25 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.25),
-    y50 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.5),
-    y75 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.75),
-    y95 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.95),
-    mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
-  ungroup()
-
-ggplot(hh_final_et, aes(x = factor(ethnicity_hhh), color = ethnicity_hhh))+
-  geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
-  theme_bw()+
-  xlab("")+
-  ylab("Additional Costs (% of Total Expenditures)")+
-  geom_point(aes(y = mean), shape = 23, size = 1.5, fill = "white", position=position_dodge(width=0.5))+
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
-  coord_cartesian(ylim = c(0,0.21))+
-  ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Ethnicity")+
-  scale_color_manual(values=c("#F8766D", "#00BFC4", "#E69F00", "#009E73"), labels = c("African Black", "Coloured", "Indian/Asian", "White")) +
-  theme(axis.text = element_text(size = 8),
-        axis.title = element_text(size = 8),
-        plot.title = element_text(size = 11),
-        plot.subtitle = element_text(size = 10),
-        legend.position = "bottom",
-        plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+
-  labs(colour = "")
+# # ethnicity in general - not used
+# hh_final$ethnicity_hhh <- as.factor(hh_final$ethnicity_hhh)
+# 
+# hh_final_et <- hh_final %>%
+#   group_by(ethnicity_hhh)%>%
+#   summarise(
+#     y5  = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.05),
+#     y25 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.25),
+#     y50 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.5),
+#     y75 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.75),
+#     y95 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.95),
+#     mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
+#   ungroup()
+# 
+# ggplot(hh_final_et, aes(x = factor(ethnicity_hhh), color = ethnicity_hhh))+
+#   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
+#   theme_bw()+
+#   xlab("")+
+#   ylab("Additional Costs (% of Total Expenditures)")+
+#   geom_point(aes(y = mean), shape = 23, size = 1.5, fill = "white", position=position_dodge(width=0.5))+
+#   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
+#   coord_cartesian(ylim = c(0,0.21))+
+#   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Ethnicity")+
+#   scale_color_manual(values=c("#F8766D", "#00BFC4", "#E69F00", "#009E73"), labels = c("African Black", "Coloured", "Indian/Asian", "White")) +
+#   theme(axis.text = element_text(size = 8),
+#         axis.title = element_text(size = 8),
+#         plot.title = element_text(size = 11),
+#         plot.subtitle = element_text(size = 10),
+#         legend.position = "bottom",
+#         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+
+#   labs(colour = "")
 
 
 ## Carbon price burden in different social groups - Gender #### - not used
@@ -462,7 +528,7 @@ hh_final_2 <- hh_final %>%
 hh_final_2 <- hh_final_2 %>%
   filter(!electricitycon == 9)
 
-ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitycon))+
+p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitycon))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -481,6 +547,16 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitycon))+
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
+
+
+# Plot
+#plot(p)
+
+# Save
+png("Electricity_Access.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
   
   # dataframe
 data <- hh_final_2 %>%
@@ -521,7 +597,7 @@ hh_final_2 <- hh_final_1 %>%
       mean = wtd.mean(burden_CO2_national, weights = hh_weights))%>%
     ungroup()
   
-  ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricityfree))+
+p<-   ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricityfree))+
     geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
     theme_bw()+
     xlab("Expenditure Quintiles")+
@@ -540,6 +616,15 @@ hh_final_2 <- hh_final_1 %>%
           legend.position = "bottom",
           plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
     labs(colour = "")
+  
+  # Plot
+  #plot(p)
+  
+  # Save
+  png("Free_Electricity.png", family = "sans", units = "cm",
+      width = 25, height = 15, pointsize = 18, res = 300)
+  print(p)
+  dev.off()
   
   # dataframe
   data <- hh_final_2 %>%
@@ -569,7 +654,7 @@ hh_final_2 <- hh_final_2 %>%
 
 hh_final_2$electricitymains <- as.factor(hh_final_2$electricitymains)
 
-ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitymains))+
+p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitymains))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -588,6 +673,17 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitymains))+
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
+
+
+    # Plot
+  #plot(p)
+  
+  # Save
+  png("Connected_Mains.png", family = "sans", units = "cm",
+      width = 25, height = 15, pointsize = 18, res = 300)
+  print(p)
+  dev.off()
+  
   
   # dataframe
 data <- hh_final_2 %>%
@@ -649,7 +745,7 @@ hh_burden2 <- merge(hh_burden, hh_final_3, all=TRUE)
 hh_burden2$category <- factor(hh_burden2$category, levels = c("burden_CO2_national","burden_CO2_electricity","burden_CO2_transport"))
 
 
-ggplot(hh_burden2, aes(x = factor(Income_Group_5), fill = category))+
+p <- ggplot(hh_burden2, aes(x = factor(Income_Group_5), fill = category))+
   geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.3) +
   theme_bw()+
   xlab("Expenditure Quintiles")+
@@ -668,6 +764,15 @@ ggplot(hh_burden2, aes(x = factor(Income_Group_5), fill = category))+
         legend.position = "bottom",
         plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
   labs(colour = "")
+
+# Plot
+#plot(p)
+
+# Save
+png("Electricity_Transport.png", family = "sans", units = "cm",
+    width = 25, height = 15, pointsize = 18, res = 300)
+print(p)
+dev.off()
   
   # dataframe
 data <- hh_burden_2 %>%
