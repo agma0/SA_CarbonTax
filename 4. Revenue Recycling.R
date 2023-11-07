@@ -112,9 +112,9 @@ vs <- ggplot(hh_rr2, aes(x = factor(Income_Group_5), fill = category)) +
   xlab("Expenditure Quintiles") +
   ylab("Net Income Gain (% of total expenditures)") +
   geom_point(aes(y = mean, group = category), shape = 23, size = 1.5, fill = "black", position = position_dodge(width = 0.5)) +
-  scale_y_continuous(breaks = seq(-0.2, 0.8, by = 0.1), labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
+  scale_y_continuous(breaks = seq(-0.2, 1.7, by = 0.1), labels = scales::percent_format(accuracy = 1), expand = c(0, 0)) +
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent")) +
-  coord_cartesian(ylim = c(-0.21, 0.81)) +
+  coord_cartesian(ylim = c(-0.21, 1.7)) +
   ggtitle("Revenue Recycling with National Carbon Tax of US$ 30t/CO2") +
   scale_fill_manual(values = c("#9b2226", "#00BFC4", "#669999"), labels = c("Total Burden", "Full Lump Sum", "Full CO2 Tax Electricity Compensation")) +
   guides(fill = guide_legend(title = NULL)) +
@@ -130,7 +130,7 @@ vs <- vs + geom_hline(yintercept = 0)
 
 
 # Plot
-#plot(vs)
+plot(vs)
 
 # Save
 png("Revenue_Recycling.png", family = "sans", units = "cm",

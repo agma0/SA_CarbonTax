@@ -85,7 +85,7 @@ p <- ggplot(hh_final, aes(x = CO2_t_national)) +
   labs(x = "CO2 emissions (t/household)", 
        y = "Share of all households (%)", 
        title = "Distribution of CO2 Footprint") +
-  scale_x_continuous(breaks = seq(0, 200, by = 10), minor_breaks = seq(0, 200, by = 10)) +
+  scale_x_continuous(breaks = seq(0, 700, by = 20), minor_breaks = seq(0, 200, by = 10)) +
   theme_bw() +
   theme(axis.text = element_text(size = 12), 
         axis.title = element_text(size = 12),
@@ -96,7 +96,7 @@ p <- ggplot(hh_final, aes(x = CO2_t_national)) +
         panel.grid.minor = element_blank())
 
 # Plot
-#plot(p)
+plot(p)
 
 # Save
 png("Footprint_Distribution.png", family = "sans", units = "cm",
@@ -212,7 +212,7 @@ p <- ggplot(hh_final_1, aes(x = factor(Income_Group_10), fill=""))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   #scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
   scale_x_discrete(labels = c("1 \n Poorest \n 10 Percent", "2", "3", "4", "5", "6", "7", "8", "9", "10 \n Richest \n 10 Percent"))+
-  coord_cartesian(ylim = c(0,0.2))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2")+
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
   scale_fill_manual(values=c("#ca6702"))+
@@ -264,7 +264,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = urban_1))+
   geom_point(aes(y = mean, group=urban_1), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.2))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Residential Areas")+
   scale_fill_manual(values=c("#F8766D", "#00BFC4", "#E69F00", "#009E73"), labels = c("Urban formal", "Urban informal", "Rural traditional", "Rural formal")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -314,7 +314,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_3), fill = province))+
   geom_point(aes(y = mean, group=province), shape = 23, size = 1, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 33 Percent", "2", "3 \n Richest \n 33 Percent"))+
-  coord_cartesian(ylim = c(0,0.2))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Provinces")+
   scale_fill_manual(values=c("#F8766D", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#006147"), labels = c("Western Cape", "Eastern Cape","Northern Cape","Free State","KwaZulu-Natal","North West","Gauteng","Mpumalanga","Limpopo")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -328,7 +328,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_3), fill = province))+
 
 
 # Plot
-#plot(p)
+plot(p)
 
 # Save
 png("Province.png", family = "sans", units = "cm",
@@ -401,7 +401,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = ethnicity_hhh))+
   geom_point(aes(y = mean, group=ethnicity_hhh), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.31))+
+  coord_cartesian(ylim = c(0,0.5))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Ethnicity")+
   scale_fill_manual(values=c("#F8766D", "#00BFC4", "#E69F00", "#009E73"), labels = c("African Black", "Coloured", "Indian/Asian", "White")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -484,7 +484,7 @@ ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = gender_hhh))+
   geom_point(aes(y = mean, group=gender_hhh), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.21))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Gender")+
   scale_fill_manual(values=c("#F8766D", "#009E73"), labels = c("Male", "Female")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -536,7 +536,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitycon))+
   geom_point(aes(y = mean, group=electricitycon), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.2))+
+  coord_cartesian(ylim = c(0,0.45))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Electricity Access")+
   scale_fill_manual(values=c("#ca6702","#194A84"), labels = c("Access", "No Access")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -550,7 +550,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitycon))+
 
 
 # Plot
-#plot(p)
+plot(p)
 
 # Save
 png("Electricity_Access.png", family = "sans", units = "cm",
@@ -605,7 +605,7 @@ p<-   ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricityfree)
     geom_point(aes(y = mean, group=electricityfree), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
     scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
     scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-    coord_cartesian(ylim = c(0,0.21))+
+    coord_cartesian(ylim = c(0,0.35))+
     ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Free Electricity Acess")+
     scale_fill_manual(values=c("#F8766D", "#009E73"), labels = c("Free", "Paid")) + 
     guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -617,10 +617,10 @@ p<-   ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricityfree)
           plot.margin = margin(0.1, 0.3, 0.1, 0.3, "cm"))+ 
     labs(colour = "")
   
-  # Plot
-  #plot(p)
+# Plot
+plot(p)
   
-  # Save
+# Save
   png("Free_Electricity.png", family = "sans", units = "cm",
       width = 25, height = 15, pointsize = 18, res = 300)
   print(p)
@@ -662,7 +662,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitymains)
   geom_point(aes(y = mean, group = electricitymains), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.2))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Electricity Source")+
   scale_fill_manual(values=c("#ca6702","#194A84"), labels = c("MAINS", "Other")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -676,7 +676,7 @@ p <- ggplot(hh_final_2, aes(x = factor(Income_Group_5), fill = electricitymains)
 
 
     # Plot
-  #plot(p)
+  plot(p)
   
   # Save
   png("Connected_Mains.png", family = "sans", units = "cm",
@@ -753,7 +753,7 @@ p <- ggplot(hh_burden2, aes(x = factor(Income_Group_5), fill = category))+
   geom_point(aes(y = mean, group = category), shape = 23, size = 1.5, fill = "black", position=position_dodge(width=0.5))+
   scale_y_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
   scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
-  coord_cartesian(ylim = c(0,0.151))+
+  coord_cartesian(ylim = c(0,0.35))+
   ggtitle("Additional Costs with a National Carbon Tax of US$ 30/tCO2 by Energy Sources")+
   scale_fill_manual(values=c("#9b2226","#ca6702","#194A84"), labels = c("Burden (total)", "Burden Electricity", "Burden Transport")) + 
   guides(fill = guide_legend(title = NULL)) +  # remove legend title
@@ -766,7 +766,7 @@ p <- ggplot(hh_burden2, aes(x = factor(Income_Group_5), fill = category))+
   labs(colour = "")
 
 # Plot
-#plot(p)
+plot(p)
 
 # Save
 png("Electricity_Transport.png", family = "sans", units = "cm",

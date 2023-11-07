@@ -334,7 +334,7 @@ p <- ggplot(data= vi, aes(x=rownames(vi), y=Overall)) +
   coord_flip()
 
 # Plot
-#plot(p)
+plot(p)
 
 # Save
 png("RF_importance.png", family = "sans", units = "cm",

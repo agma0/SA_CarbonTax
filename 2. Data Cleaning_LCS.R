@@ -273,8 +273,11 @@ rm(energy)
 
 
 # 5.4.   Vector with Carbon Intensities ####
-carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_Full_0.xlsx", sheet = Country.Name) #2014
-#carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF.xlsx", sheet = Country.Name) #2017
+
+#carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_Full_0.xlsx", sheet = Country.Name) #2014 GTAP 10
+#carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF.xlsx", sheet = Country.Name) #2017 GTAP 11
+
+carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF_2014.xlsx", sheet = Country.Name) #2017 GTAP 11
 GTAP_code            <- read_delim("GTAP/Supplementary Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE)
 
 carbon_intensities   <- left_join(GTAP_code, carbon_intensities_0, by = c("Number"="GTAP"))%>%

@@ -248,7 +248,7 @@ household$log_expenditures_hh <- log(household$hh_expenditures_USD_2014)
 
 ## 2. OLS ####
 ols <- lm(burden_CO2_national ~  log_expenditures_hh + province + urban_1 + gender_hhh + ethnicity_hhh + education_hhh +
-             own_vehicle + own_stove + electricitysource + lightingsource + cookingsource + 
+             own_vehicle + own_stove + electricitysource + electricityfree + lightingsource + cookingsource + 
              heatingsourcewater + heatingsourcespace, data=household)
 
 summary(ols)
