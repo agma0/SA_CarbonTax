@@ -37,6 +37,7 @@ if(nrow(count(expenditure_information, hh_id)) != nrow(count(household_informati
 
 #Households, whose characteristics are identical with another
 household_information_1 <- household_information %>%
+  select(-income, -consumption)%>%
   group_by_at(vars(-hh_id))%>%
   mutate(number = n(),
          flag = ifelse(number > 1,1,0))%>%
@@ -119,7 +120,7 @@ hh_negative_expenditures_4 <- expenditure_information_4 %>%
 # hh_duplicates_expenditures_3 captures all households, who report the same amount of total expenditures as some other household
 
 check_0 <- subset(expenditure_information, (hh_id %in% hh_duplicates_information$hh_id)) %>%
-  pivot_wider(names_from = "item_code", values_from = "expenditures_year") # no duplicates
+  pivot_wider(names_from = "item_code", values_from = "expenditures_year") # 1024 duplicates
 
 check_1 <- subset(expenditure_information, (hh_id %in% hh_duplicates_expenditures_1$hh_id)) %>%
   pivot_wider(names_from = "item_code", values_from = "expenditures_year") # no duplicates
@@ -136,12 +137,12 @@ check_neg <- subset(expenditure_information, (hh_id %in% hh_negative_expenditure
 
 # 3.1.2   Duplicate Removal ####
 
-# if(Country.Name == "South Africa"){
-#   household_information <- household_information %>%
-#     filter(!hh_id %in% hh_duplicates_expenditures_x$hh_id)
-#   expenditure_information <- expenditure_information %>%
-#     filter(!hh_id %in% hh_duplicates_expenditures_x$hh_id)
-# }
+if(Country.Name == "South Africa"){
+ household_information <- household_information %>%
+   filter(!hh_id %in% hh_duplicates_information$hh_id)
+ expenditure_information <- expenditure_information %>%
+   filter(!hh_id %in% hh_duplicates_information$hh_id)
+}
 
 
 # Clean Environment
@@ -281,9 +282,10 @@ rm(energy)
 # 5.4.   Vector with Carbon Intensities ####
 
 #carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_Full_0.xlsx", sheet = Country.Name) #2014 GTAP 10
-#carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF.xlsx", sheet = Country.Name) #2017 GTAP 11
+carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF.xlsx", sheet = Country.Name) #2017 GTAP 11
 
-carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF_2014.xlsx", sheet = Country.Name) #2017 GTAP 11
+# carbon_intensities_0 <- read.xlsx("GTAP/Supplementary Data/Carbon_Intensities_ZAF_2014.xlsx", sheet = Country.Name) #2017 GTAP 11
+# Problem is that ros is too carbon-intensive
 GTAP_code            <- read_delim("GTAP/Supplementary Data/GTAP10.csv", ";", escape_double = FALSE, trim_ws = TRUE)
 
 carbon_intensities   <- left_join(GTAP_code, carbon_intensities_0, by = c("Number"="GTAP"))%>%

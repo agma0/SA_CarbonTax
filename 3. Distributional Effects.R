@@ -12,25 +12,30 @@ options(scipen=999)
 setwd("C:/Users/agath/Desktop/Code GitHub/LCS_results")
 
 # Load data - LCS_results
-carbon_pricing    <- read_csv("Carbon_Pricing_Incidence_South Africa.csv")
-fuel_expenditures <- read_csv("fuel_expenditures_South Africa.csv") 
-hh_info           <- read_csv("household_information_South Africa.csv")
+carbon_pricing    <- read_csv("LCS_results/Carbon_Pricing_Incidence_South Africa.csv")
+fuel_expenditures <- read_csv("LCS_results/fuel_expenditures_South Africa.csv") 
+hh_info           <- read_csv("LCS_results/household_information_South Africa.csv")
 
 # Create one dataframe with all information
 hh_fuel_carbon <- left_join(carbon_pricing, fuel_expenditures)
 hh_final <- left_join(hh_fuel_carbon, hh_info)
 
 # save dataframe 
-write.csv(hh_final, "hh_final_LCS.csv")
+# write_csv(hh_final, "LCS_results/hh_final_LCS.csv")
 
 rm(list = setdiff(ls(), "hh_final"))
+
+# Summary statistics
+
+mean(hh_final$CO2_t_national) # 13.75 
+mean(hh_final$hh_expenditures_USD_2014) # 6,283 USD - comparable to other dataset
 
 
 #---------------------------------------------------------------------------------------------------------
 
 # Farben
 
-# rot      organge     türkis    blau
+# rot      organge     t?rkis    blau
 #"#9b2226","#ca6702","#94d2bd","#194A84"
 
 

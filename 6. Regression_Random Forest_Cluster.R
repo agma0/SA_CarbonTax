@@ -6,166 +6,154 @@ library(randomForest)
 library(rpart)
 library(rpart.plot)
 library(caTools)
-library(caret)
-library(ggpmisc)
+# library(caret)
+# library(ggpmisc)
 library(cluster)
 library(GGally)
+library(tidymodels)
 
 
 #### CHANGE PATH ####
 # Set working directory Agatha
-setwd("C:/Users/agath/Desktop/Code GitHub/LCS_results")
+# etwd("C:/Users/agath/Desktop/Code GitHub/LCS_results")
 
 # Load data 1 - LCS
-household_all <- fread("hh_final_LCS.csv")
+household_all <- read_csv("LCS_results/hh_final_LCS.csv")
 
 household_all <- household_all %>% 
-  dplyr::select(-1)
+  select(hh_id, hh_expenditures_USD_2014, 
+         # exp_CO2_national, 
+         burden_CO2_national, 
+         province, urban_1, 
+         electricitycon, electricitymains,
+         electricitysource, electricityfree, 
+         lightingsource, cookingsource, heatingsourcewater, heatingsourcespace, 
+         education_hhh, gender_hhh, ethnicity_hhh, own_stove, own_vehicle)%>%
+  mutate(log_expenditures = log(hh_expenditures_USD_2014))
+
+# 6.1 Pre-Processing - transforming data with recipes and splitting data ####
+
+household_all_1 <- household_all %>%
+  mutate(province = ifelse(province == '1', "Western Cape", 
+                           ifelse(province == "2", 'Eastern Cape',  
+                                  ifelse(province == "3", 'Northern Cape',  
+                                         ifelse(province == "4", 'Free State', 
+                                                ifelse(province == "5", 'Kwazulu Natal', 
+                                                       ifelse(province == "6", 'North-West', 
+                                                              ifelse(province == "7", 'Gauteng', 
+                                                                     ifelse(province == "8", 'Mpumalanga', 
+                                                                            ifelse(province == "9", 'Limpopo', NA))))))))))%>%
+  mutate(gender_hhh = ifelse(gender_hhh == 1, "Male", "Female"))%>%
+  mutate(ethnicity_hhh = case_when(ethnicity_hhh == 1 ~ "African-black",
+                                   ethnicity_hhh == 2 ~ "Coloured",
+                                   ethnicity_hhh == 3 ~ "Indian/Asian",
+                                   ethnicity_hhh == 4 ~ "White"))%>%
+  mutate(education_hhh = case_when(education_hhh < 9  ~ 1, 
+                                   education_hhh < 15 ~ 2, 
+                                   education_hhh < 25 ~ 3,
+                                   education_hhh < 27 ~ 4,
+                                   education_hhh < 29 ~ 6,
+                                   education_hhh < 30 ~ 7,
+                                   education_hhh < 31 ~ 8,
+                                   education_hhh > 39 ~ 9))%>%
+  mutate(car.01  = ifelse(own_vehicle == 1,1,0))%>%
+  mutate(stove.01 = ifelse(own_stove   == 1,1,0))%>%
+  mutate(electricity = case_when(electricitymains == 1  ~ "Mains",
+                                 electricitysource == 4 ~ "Solar",
+                                 electricitycon == 2    ~ "No access",
+                                 TRUE ~ "Other"))%>%
+  mutate(electricity_free = ifelse(electricityfree == 1, "Free electricity", "No free electricity"))%>%
+  mutate(LF = case_when(lightingsource == 1 | lightingsource == 2 ~ "Electricity",
+                        lightingsource == 4  ~ "Gas",
+                        lightingsource == 7 ~ "Candles",
+                        lightingsource == 9 ~ "Solar",
+                        TRUE ~ "Other"))%>%
+  mutate(CF = case_when(cookingsource == 1 | cookingsource == 2 ~ "Electricity",
+                        cookingsource == 3 ~ "Gas",
+                        cookingsource == 4 ~ "Paraffin",
+                        cookingsource == 5 ~ "Wood",
+                        cookingsource == 6 ~ "Coal",
+                        cookingsource == 8 ~ "Biomass",
+                        cookingsource == 9 ~ "Solar energy",
+                        TRUE ~ "Other"))%>%
+  mutate(HFW = case_when(heatingsourcewater == 1 | heatingsourcewater == 2 ~ "Electricity",
+                        heatingsourcewater == 3 ~ "Gas",
+                        heatingsourcewater == 4 ~ "Paraffin",
+                        heatingsourcewater == 5 ~ "Wood",
+                        heatingsourcewater == 6 ~ "Coal",
+                        heatingsourcewater == 8 ~ "Biomass",
+                        heatingsourcewater == 9 ~ "Solar energy",
+                        TRUE ~ "Other"))%>%
+  mutate(HFS = case_when(heatingsourcespace == 1 | heatingsourcespace == 2 ~ "Electricity",
+                         heatingsourcespace == 3 ~ "Gas",
+                         heatingsourcespace == 4 ~ "Paraffin",
+                         heatingsourcespace == 5 ~ "Wood",
+                         heatingsourcespace == 6 ~ "Coal",
+                         heatingsourcespace == 8 ~ "Biomass",
+                         heatingsourcespace == 9 ~ "Solar energy",
+                         TRUE ~ "Other"))%>%
+  mutate(urban_01 = ifelse(urban_1 == 1 | urban_1 == 2, "Urban", "Rural"))%>%
+  select(-own_vehicle, -own_stove, -electricitymains, -electricitysource, -electricitycon, -lightingsource, -cookingsource,
+         -heatingsourcewater, -heatingsourcespace, -log_expenditures, -electricityfree, -urban_1, -hh_id)
+
+# 6.2 Tuning the model ####
+
+# 6.3 Fitting the final model ####
+
+# 6.4 SHAP-values ####
+
+# 6.5 Variable importance plots ####
+
+# 6.6 Partial dependence plots ####
 
 
-# Select Variables
-household <- household_all %>%
-  dplyr::select(hh_id, hh_expenditures_USD_2014, exp_CO2_national, burden_CO2_national, province, urban_1, electricitycon, electricitymains,
-         electricitysource, electricityfree, lightingsource, cookingsource, heatingsourcewater, heatingsourcespace, education_hhh, gender_hhh, ethnicity_hhh, own_stove, own_vehicle)
-
-household1 <- household %>%
-  dplyr::select(burden_CO2_national)
-
-
-
-# log expenditures
-household1$log_expenditures <- log(household$hh_expenditures_USD_2014)
-
-## 6.1. Create binary variables ####
-
- # Provinces
- household1$pro_westerncape <- ifelse(household$province == '1', 1, 0)
- household1$pro_easterncape <- ifelse(household$province == '2', 1, 0)
- household1$pro_northerncape <- ifelse(household$province == '3', 1, 0)
- household1$pro_freestate <- ifelse(household$province == '4', 1, 0)
- household1$pro_kwazulunatal <- ifelse(household$province == '5', 1, 0)
- household1$pro_northwest <- ifelse(household$province == '6', 1, 0)
- household1$pro_gauteng <- ifelse(household$province == '7', 1, 0)
- household1$pro_mpumalanga <- ifelse(household$province == '8', 1, 0)
- household1$pro_limpopo <- ifelse(household$province == '9', 1, 0)
-
- # Urban/Rural
- household1$urb_urban_formal <- ifelse(household$urban_1 == '1', 1, 0)
- household1$urb_urban_informal <- ifelse(household$urban_1 == '2', 1, 0)
- household1$urb_rural_traditional <- ifelse(household$urban_1 == '4', 1, 0)
- household1$urb_rural_formal <- ifelse(household$urban_1 == '5', 1, 0)
-
- # Gender
- household1$gender_male <- ifelse(household$gender_hhh == '1', 1, 0)
- household1$gender_female <- ifelse(household$gender_hhh == '2', 1, 0)
- 
- 
- # Ethnicity
- household1$eth_africanblack <- ifelse(household$ethnicity_hhh == '1', 1, 0)
- household1$eth_coloured <- ifelse(household$ethnicity_hhh == '2', 1, 0)
- household1$eth_indian_asian <- ifelse(household$ethnicity_hhh == '3', 1, 0)
- household1$eth_white <- ifelse(household$ethnicity_hhh == '4', 1, 0)
-
-
-# Education
-household1$edu_preprimary <- ifelse(household$education_hhh == '1', 1, 0)
-household1$edu_primary <- ifelse(household$education_hhh == '2' | household$education_hhh == '3' | household$education_hhh == '4'| household$education_hhh == '5', 1, 0)
-
-household1$edu_lower_secondary <- ifelse(household$education_hhh == '6' | household$education_hhh == '7' | household$education_hhh == '8', 1, 0)
-household1$edu_upper_secondary <- ifelse(household$education_hhh == '9'| household$education_hhh == '10' | household$education_hhh == '11' | household$education_hhh == '12'| household$education_hhh == '13'|
-                                    household$education_hhh == '14' , 1, 0)
-household1$edu_postsecondary_nontertiary <- ifelse(household$education_hhh == '15' | household$education_hhh == '16' | household$education_hhh == '17'| household$education_hhh == '18'|
-                                    household$education_hhh == '19' | household$education_hhh == '20' | household$education_hhh == '21'| household$education_hhh == '22'|
-                                    household$education_hhh == '23'| household$education_hhh == '24', 1, 0)
-household1$edu_shortcycle_tertiary <- ifelse(household$education_hhh == '25'| household$education_hhh == '26', 1, 0)
-household1$edu_bachelor_eq <- ifelse(household$education_hhh == '27'| household$education_hhh == '28'| household$education_hhh == '29', 1, 0)
-household1$edu_master_eq <- ifelse(household$education_hhh == '30', 1, 0)
-household1$edu_other <- ifelse(household$education_hhh == '31' | household$education_hhh == '32', 1, 0)
-household1$edu_no_schooling <- ifelse(household$education_hhh == '98', 1, 0)
-
-
-# own car/stove
-household1$veh_own <- ifelse(household$own_vehicle == '1', 1, 0)
-household1$veh_other <- ifelse(household$own_vehicle == '2' | household$own_vehicle == '9' , 1, 0)
-household1$veh_noaccess <- ifelse(household$own_vehicle == '3', 1, 0)
-
-household1$sto_own <- ifelse(household$own_stove == '1', 1, 0)
-household1$sto_other <- ifelse(household$own_vehicle == '2' | household$own_vehicle == '9' , 1, 0)
-household1$sto_noaccess <- ifelse(household$own_stove == '3', 1, 0)
-
-# electricity source
-household1$elec_mains <- ifelse(household$electricitymains == '1', 1, 0)
-household1$elec_other <- ifelse(household$electricitysource == '1'| household$electricitysource == '2'| household$electricitysource == '3'|
-                                  household$electricitysource == '5' | household$electricitysource == '6'| household$electricitysource == '9', 1, 0)
-household1$elec_solar <- ifelse(household$electricitysource == '4', 1, 0)
-household1$elec_noaccess <- ifelse(household$electricitycon == '2', 1, 0)
-
-# electricity free
-household1$elecf_free <- ifelse(household$electricityfree == '1', 1, 0)
-household1$elecf_nofree <- ifelse(household$electricityfree == '2', 1, 0)
-
-
-# lighting source
-household1$light_elecmains <- ifelse(household$lightingsource == '1', 1, 0)
-household1$light_elecother <- ifelse(household$lightingsource == '2', 1, 0)
-household1$light_other <- ifelse(household$lightingsource == '3'|household$lightingsource == '10'|household$lightingsource == '99', 1, 0)
-household1$light_paraffin <- ifelse(household$lightingsource == '4', 1, 0)
-household1$light_candles <- ifelse(household$lightingsource == '7', 1, 0)
-household1$light_solar <- ifelse(household$lightingsource == '9', 1, 0)
-
-# cooking source
-household1$cooking_elecmains <- ifelse(household$cookingsource == '1', 1, 0)
-household1$cooking_elecother <- ifelse(household$cookingsource == '2', 1, 0)
-household1$cooking_gas <- ifelse(household$cookingsource == '3', 1, 0)
-household1$cooking_paraffin <- ifelse(household$cookingsource == '4', 1, 0)
-household1$cooking_coal <- ifelse(household$cookingsource == '6', 1, 0)
-household1$cooking_wood <- ifelse(household$cookingsource == '5', 1, 0)
-household1$cooking_dung <- ifelse(household$cookingsource == '8', 1, 0)
-household1$cooking_solar <- ifelse(household$cookingsource == '9', 1, 0)
-household1$cooking_other<- ifelse(household$cookingsource == '10' | household$cookingsource == '99', 1, 0)
-household1$cooking_noaccess <- ifelse(household$cookingsource == '11', 1, 0)
-
-# water heating source
-household1$heat_w_elecmains <- ifelse(household$heatingsourcewater == '1', 1, 0)
-household1$heat_w_elecother <- ifelse(household$heatingsourcewater == '2', 1, 0)
-household1$heat_w_gas <- ifelse(household$heatingsourcewater == '3', 1, 0)
-household1$heat_w_paraffin <- ifelse(household$heatingsourcewater == '4', 1, 0)
-household1$heat_w_coal <- ifelse(household$heatingsourcewater == '6', 1, 0)
-household1$heat_w_wood <- ifelse(household$heatingsourcewater == '5', 1, 0)
-household1$heat_w_dung <- ifelse(household$heatingsourcewater == '8', 1, 0)
-household1$heat_w_solar <- ifelse(household$heatingsourcewater == '9', 1, 0)
-household1$heat_w_other <- ifelse(household$heatingsourcewater == '10'| household$heatingsourcewater == '99', 1, 0)
-household1$heat_w_noaccess <- ifelse(household$heatingsourcewater == '11', 1, 0)
-
-# space heating source
-household1$heat_s_elecmains <- ifelse(household$heatingsourcespace == '1', 1, 0)
-household1$heat_s_elecother <- ifelse(household$heatingsourcespace == '2', 1, 0)
-household1$heat_s_gas <- ifelse(household$heatingsourcespace == '3', 1, 0)
-household1$heat_s_paraffin <- ifelse(household$heatingsourcespace == '4', 1, 0)
-household1$heat_s_coal <- ifelse(household$heatingsourcespace == '6', 1, 0)
-household1$heat_s_wood <- ifelse(household$heatingsourcespace == '5', 1, 0)
-household1$heat_s_dung <- ifelse(household$heatingsourcespace == '8', 1, 0)
-household1$heat_s_solar <- ifelse(household$heatingsourcespace == '9', 1, 0)
-household1$heat_s_other <- ifelse(household$heatingsourcespace == '10'| household$heatingsourcespace == '99', 1, 0)
-household1$heat_s_noaccess <- ifelse(household$heatingsourcespace == '11', 1, 0)
-
-
-
- household2 <- household1
-#   select(!log_expenditures)
-
-
-
- 
 ## 6.2. Random Forest ####
 
+household_all <- household_all %>%
+   mutate_at(vars(province:own_vehicle), ~ as.character(.))%>%
+   select(-log_expenditures, -hh_id)
+ 
 set.seed(1)
 
 # split in train/test
-sample_split <- sample.split(Y = household2$burden_CO2_national, SplitRatio = 0.75)
-train_set <- subset(x = household2, sample_split == TRUE)
-test_set <- subset(x = household2, sample_split == FALSE)
+# sample_split <- sample.split(Y = household2$burden_CO2_national, SplitRatio = 0.75)
+sample_split <- initial_split(household_all, prop = 0.75)
+# train_set <- subset(x = household2, sample_split == TRUE)
+train_set <- training(sample_split)
+# test_set <- subset(x = household2, sample_split == FALSE)
+test_set <- testing(sample_split)
 
+recipe_0 <- recipe(burden_CO2_national ~ ., data = train_set)%>%
+  step_filter_missing(all_predictors(), threshold = 0)%>%
+  step_other(all_nominal())%>%
+  step_dummy(all_nominal())
+
+training_set <- recipe_0 %>%
+  prep(training = train_set)%>%
+  bake(new_data = NULL)
+
+tune_model <- rand_forest(
+  mtry = tune(),
+  trees = 1000,
+  min_n = tune(),
+)%>%
+  set_mode("regression")%>%
+  set_engine("ranger")
+
+# Workflow
+wf <- workflow()%>%
+  add_recipe(recipe_0)%>%
+  add_model(tune_model)
+  
+# Cross-validation
+
+folds <- vfold_cv(training_set, v = 5)
+
+tuned_model <- tune_grid(
+  wf,
+  resamples = folds, 
+  grid = 10
+)
 
 #Cross Validation
 tree_train_control = trainControl(

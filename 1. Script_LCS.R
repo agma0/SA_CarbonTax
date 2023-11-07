@@ -63,6 +63,8 @@ household_information <- house %>%
           consumption        = expenditure) %>%
   distinct(hh_id, .keep_all = TRUE)
 
+hh_id_0 <- distinct(household_information, hh_id)%>%
+  mutate(hh_id_new = 1:n())
 
 # Get Variables from Person Data
 householdmembers <- person %>%
@@ -100,8 +102,20 @@ assets <- hhassets %>%
 
 
 #merge household_members
-household_members1       <- left_join(hhh, assets, by ="hh_id")
-household_information_sa <- left_join(household_information, household_members1, by ="hh_id")
+
+hhh <- hhh %>%
+  left_join(hh_id_0)%>%
+  select(-hh_id)
+assets <- assets %>%
+  left_join(hh_id_0)%>%
+  select(-hh_id)
+household_information <- household_information %>%
+  left_join(hh_id_0)%>%
+  select(-hh_id)
+
+household_members1       <- left_join(hhh, assets, by ="hh_id_new")
+household_information_sa <- left_join(household_information, household_members1, by ="hh_id_new")%>%
+  rename(hh_id = hh_id_new)
 
 household_information_sa <- household_information_sa %>% 
   relocate(gender_hhh, .after = last_col()) %>%
@@ -130,7 +144,10 @@ expenditure_information <- expenditure_information[order(expenditure_information
 
 rownames(expenditure_information) <- NULL
 
-
+expenditure_information <- expenditure_information %>%
+  left_join(hh_id_0)%>%
+  select(-hh_id)%>%
+  rename(hh_id = hh_id_new)
 
 # write new table
 write_csv(expenditure_information, "LCS_results/expenditure_information_sa.csv")

@@ -17,7 +17,7 @@ setwd("C:/Users/agath/Desktop/Code GitHub/LCS_results")
 
 
 # read dataframe hh_final
-hh_final    <- read_csv("hh_final_LCS.csv")
+hh_final    <- read_csv("LCS_results/hh_final_LCS.csv")
 
 
 
