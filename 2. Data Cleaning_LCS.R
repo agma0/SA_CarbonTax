@@ -11,7 +11,7 @@ options(scipen=999)
 
 #### CHANGE PATH ####
 # Set working directory Agatha
-setwd("C:/Users/agath/Desktop/Code GitHub")
+# setwd("C:/Users/agath/Desktop/Code GitHub")
 
 
 # 1. Setup
@@ -23,8 +23,8 @@ carbon.price <- 30 #in USD/tCO2
 
 # 2. Load Household and Expenditure File 
 
-household_information <- fread("LCS_results/household_information_sa")
-expenditure_information <- fread("LCS_results/expenditure_information_sa")
+household_information <- read_csv("LCS_results/household_information_sa.csv")
+expenditure_information <- read_csv("LCS_results/expenditure_information_sa.csv")
 
 
 # check if same amount households in expenditure and household information
@@ -53,6 +53,9 @@ print(paste0(sprintf("For %s, ", Country.Name), nrow(hh_duplicates_information),
 
 # Households, who spend exactly the same amount of money on each item than any other households
 expenditure_information_1 <- expenditure_information %>%
+  group_by(item_code, hh_id)%>%
+  summarise(expenditures_year = sum(expenditures_year))%>%
+  ungroup()%>%
   pivot_wider(names_from = "item_code", values_from = "expenditures_year")%>%
   group_by_at(vars(-hh_id))%>%
   mutate(number = n(),
@@ -144,12 +147,15 @@ check_neg <- subset(expenditure_information, (hh_id %in% hh_negative_expenditure
 # Clean Environment
 rm(expenditure_information_1, expenditure_information_2, expenditure_information_3, household_information_1, 
    hh_duplicates_expenditures_1, hh_duplicates_expenditures_2, hh_duplicates_expenditures_3, hh_duplicates_information,
-   hh_negative_expenditures_4, expenditure_information_4, duplicate_information, check_0, check_1, check_2,check_3, check_neg)
+   hh_negative_expenditures_4, expenditure_information_4, check_0, check_1, check_2,check_3, check_neg)
 
 
 # 3.2     Cleaning per Item_code #### 
 
 expenditure_information_4 <- expenditure_information %>%
+  group_by(item_code, hh_id)%>%
+  summarise(expenditures_year = sum(expenditures_year))%>%
+  ungroup()%>%
   left_join(select(household_information, hh_id, hh_weights))%>%
   filter(!is.na(expenditures_year) & expenditures_year > 0 )%>%
   group_by(item_code)%>%
@@ -377,7 +383,7 @@ expenditure_information_1 <- expenditure_information_1 %>%
   group_by(hh_id, GTAP)%>%
   summarise(expenditures = sum(expenditures))%>%
   ungroup()%>%
-  mutate(expenditures_USD_2014 = expenditures*exchange.rate)%>%
+  mutate(expenditures_USD_2014    = expenditures*exchange.rate)%>%
   group_by(hh_id)%>%
   mutate(hh_expenditures_USD_2014 = sum(expenditures_USD_2014))%>%
   ungroup()
