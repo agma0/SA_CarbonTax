@@ -1,16 +1,21 @@
 ## 6. Random Forest and Household Cluster ####
 
+library(ggpubr)
 library(data.table)
+library(doFuture)
 library(tidyverse)
 library(randomForest)
 library(rpart)
 library(rpart.plot)
 library(caTools)
-# library(caret)
+library(caret)
 # library(ggpmisc)
 library(cluster)
 library(GGally)
 library(tidymodels)
+library(kernelshap)
+library(shapviz)
+library("ggsci")
 
 
 #### CHANGE PATH ####
@@ -48,14 +53,14 @@ household_all_1 <- household_all %>%
                                    ethnicity_hhh == 2 ~ "Coloured",
                                    ethnicity_hhh == 3 ~ "Indian/Asian",
                                    ethnicity_hhh == 4 ~ "White"))%>%
-  mutate(education_hhh = case_when(education_hhh < 9  ~ 1, 
-                                   education_hhh < 15 ~ 2, 
-                                   education_hhh < 25 ~ 3,
-                                   education_hhh < 27 ~ 4,
-                                   education_hhh < 29 ~ 6,
-                                   education_hhh < 30 ~ 7,
-                                   education_hhh < 31 ~ 8,
-                                   education_hhh > 39 ~ 9))%>%
+  mutate(education_hhh = case_when(education_hhh < 9  ~ "1", 
+                                   education_hhh < 15 ~ "2", 
+                                   education_hhh < 25 ~ "3",
+                                   education_hhh < 27 ~ "4",
+                                   education_hhh < 29 ~ "6",
+                                   education_hhh < 30 ~ "7",
+                                   education_hhh < 31 ~ "8",
+                                   education_hhh > 39 ~ "9"))%>%
   mutate(car.01  = ifelse(own_vehicle == 1,1,0))%>%
   mutate(stove.01 = ifelse(own_stove   == 1,1,0))%>%
   mutate(electricity = case_when(electricitymains == 1  ~ "Mains",
@@ -96,28 +101,10 @@ household_all_1 <- household_all %>%
   select(-own_vehicle, -own_stove, -electricitymains, -electricitysource, -electricitycon, -lightingsource, -cookingsource,
          -heatingsourcewater, -heatingsourcespace, -log_expenditures, -electricityfree, -urban_1, -hh_id)
 
-# 6.2 Tuning the model ####
-
-# 6.3 Fitting the final model ####
-
-# 6.4 SHAP-values ####
-
-# 6.5 Variable importance plots ####
-
-# 6.6 Partial dependence plots ####
-
-
-## 6.2. Random Forest ####
-
-household_all <- household_all %>%
-   mutate_at(vars(province:own_vehicle), ~ as.character(.))%>%
-   select(-log_expenditures, -hh_id)
- 
-set.seed(1)
+set.seed(2023)
 
 # split in train/test
-# sample_split <- sample.split(Y = household2$burden_CO2_national, SplitRatio = 0.75)
-sample_split <- initial_split(household_all, prop = 0.75)
+sample_split <- initial_split(household_all_1, prop = 0.75)
 # train_set <- subset(x = household2, sample_split == TRUE)
 train_set <- training(sample_split)
 # test_set <- subset(x = household2, sample_split == FALSE)
@@ -125,217 +112,460 @@ test_set <- testing(sample_split)
 
 recipe_0 <- recipe(burden_CO2_national ~ ., data = train_set)%>%
   step_filter_missing(all_predictors(), threshold = 0)%>%
-  step_other(all_nominal())%>%
+  step_other(all_nominal(), threshold = 0.05)%>%
   step_dummy(all_nominal())
 
 training_set <- recipe_0 %>%
   prep(training = train_set)%>%
   bake(new_data = NULL)
 
+testing_set <- recipe_0 %>%
+  prep(training = test_set)%>%
+  bake(new_data = NULL)
+
+folds_set <- vfold_cv(training_set, v = 5)
+
+# 6.2 Tuning the model ####
+
 tune_model <- rand_forest(
-  mtry = tune(),
+  mtry  = tune(),
   trees = 1000,
   min_n = tune(),
 )%>%
   set_mode("regression")%>%
   set_engine("ranger")
 
-# Workflow
-wf <- workflow()%>%
-  add_recipe(recipe_0)%>%
-  add_model(tune_model)
-  
-# Cross-validation
+grid_0 <- grid_latin_hypercube(
+  min_n(),
+  mtry(c(round((ncol(training_set)-1)/2,0), ncol(training_set)-1)),
+  size = 30)
 
-folds <- vfold_cv(training_set, v = 5)
+# Build a model for every grid point + evaluate every model out-of-sample
 
-tuned_model <- tune_grid(
-  wf,
-  resamples = folds, 
-  grid = 10
-)
+tree_3.2 <- tune_grid(tune_model, #untuned specification of tree
+                      burden_CO2_national ~ ., # formula
+                      resamples = folds_set, # folds
+                      grid      = grid_0, # tuning grid
+                      metrics   = metric_set(mae, rmse, rsq))
 
-#Cross Validation
-tree_train_control = trainControl(
-  method = "repeatedcv",
-  number = 10,
-  #repeats = 3,
-  savePredictions = "final"       # save predictions for the optimal tuning parameter
-)
+autoplot(tree_3.2)
 
-# # Tuning
-# tuneGrid = expand.grid(
-#   mtry = seq(1, ncol(train_set) - 1, by = 1),
-#   ntree = c(100, 500, 1000),
-#   node.size = c(1, 3, 5, 10)
-# )
+# use the best performing parameters
 
+tree_3.3 <- select_best(tree_3.2) # mtry 16, min_n 36
 
-# # random forest with cross validation and tuning
-# tree_rf <- randomForest(
-#   burden_CO2_national ~ .,
-#   data = train_set,
-#   tuneGrid = tuneGrid,
-#   trControl = tree_train_control
-# )
+# plug best performing paramters into specification - updated specification
 
-# random forest with cross validation
-tree_rf <- train(
-  burden_CO2_national ~ .,
-  data = train_set,
-  method = "rf",
-  tuneGrid = expand.grid(mtry = 1:10), # searching around mtry=3
-  trControl = tree_train_control
-)
+tree_3.4 <- finalize_model(tune_model,
+                           tree_3.3)
 
+# 6.3 Fitting the final model ####
 
-tree_rf
+model_rf <- rand_forest(
+  trees = 1000,
+  mtry  = 16,
+  min_n = 36
+)%>%
+  set_mode("regression")%>%
+  set_engine("ranger", importance = "impurity")
 
-plot(tree_rf)
+model_rf_1 <- model_rf %>%
+  fit(burden_CO2_national ~ .,
+      data = training_set)
 
+# 6.4 Evaluating the final model ####
 
-# Predictions
-tree_preds_rf <- bind_cols(
-  Predicted = predict(tree_rf, newdata = test_set),
-  Actual = test_set$burden_CO2_national
-)
+predictions <- augment(model_rf_1, new_data = testing_set)
+rsq  <- rsq(predictions,  truth = burden_CO2_national, estimate = .pred) # 0.34 without tuning - 0.373 with tuning
+mae  <- mae(predictions,  truth = burden_CO2_national, estimate = .pred)
+rmse <- rmse(predictions, truth = burden_CO2_national, estimate = .pred)
 
-# RMSE random forest
-rmse_rf <- RMSE(pred = tree_preds_rf$Predicted, obs = tree_preds_rf$Actual)
+# 6.5 SHAP-values ####
 
-# Plot Predicted vs Actual
-tree_preds_rf %>%
-  ggplot(aes(x = Actual*100, y = Predicted*100)) +
-  geom_point(alpha = 0.6, color = "cadetblue") +
-  geom_smooth(method = "loess", formula = "y ~ x") +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  labs(title = "Burden Carbon Tax - Random Forest: Predicted vs Actual",
-       x = "Actual Burden (% total expenditures)",
-       y = "Predicted Burden (% total expenditures)")
+testing_set_0 <- testing_set %>%
+  select(-burden_CO2_national)
 
-#Importance
-vi <- varImp(tree_rf)
+testing_set_1 <- testing_set %>%
+  sample_n(100)
 
+doParallel::registerDoParallel()
+t <- kernelshap(model_rf_1, testing_set_0, bg_X = testing_set_1, parallel = TRUE)
+doParallel::stopImplicitCluster()
 
-# Replace names
-replacements <- c(
-  cooking_ = "Cooking Fuel: ",
-  elec_ = "Electricity Source: ",
-  elecf_ = "Free Electricity: ",
-  veh_ = "Car: ",
-  sto_ = "Stove: ",
-  edu_ = "Education: ",
-  eth_ = "Ethnicity:",
-  urb_ = "Res. Area: ",
-  gender_ = "Gender: ",
-  pro_ = "Province: ",
-  log_expenditures = "Expenditures (log)",
-  heat_w_ = "Heating Water: ",
-  heat_s_ = "Heating Space: ",
-  light_ = "Lighting Fuel: ",
-  westerncape = "Western Cape",
-  kwazulunatal = "KwaZulu Natal"
-)
+shp <- shapviz(t)
 
-# Specific replacements
-specific_replacements <- c(
-  "elec_other" = "Electricity Source: Other", 
-  "mains" = "Mains",
-  "noaccess" = "No Access",
-  "other" = "Other",
-  "own" = "Ownership",
-  "westerncape" = "Western Cape",
-  "easterncape" = "Eastern Cape",
-  "northerncape" = "Northern Cape",
-  "freestate" = "Free State",
-  "kwazulunatal" = "KwaZulu Natal",
-  "northwest" = "North West",
-  "gauteng" = "Gauteng",
-  "mpumalanga" = "Mpumalanga",
-  "limpopo" = "Limpopo",
-  "urban_formal" = "Urban Formal",
-  "urban_informal" = "Urban Informal",
-  "rural_traditional" = "Rural Traditional",
-  "rural_formal" = "Rural Formal",
-  #"female" = "Female",
-  #"male" = "Male",
-  "africanblack" = "African Black",
-  "coloured" = "Coloured",
-  "indian_asian" = "Indian/Asian",
-  "white" = "White",
-  "preprimary" = "Pre-primary",
-  "primary" = "Primary",
-  "lower_secondary" = "Lower Secondary",
-  "upper_secondary" = "Upper Secondary",
-  "postsecondary_nontertiary" = "Post-secondary Non-tertiary",
-  "shortcycle_tertiary" = "Short-cycle Tertiary",
-  "bachelor_eq" = "Bachelor's or Equivalent",
-  "master_eq" = "Master's or Equivalent",
-  "no_schooling" = "No Schooling",
-  "solar" = "Solar",
-  "paraffin" = "Paraffin",
-  "candles" = "Candles",
-  "gas" = "Gas",
-  "coal" = "Coal",
-  "wood" = "Wood",
-  "dung" = "Dung",
-  "nofree" = "Not Free",
-  "free" = "Free",
-  "elecmains" = "Electricity from Mains",
-  "elec" = "Electricity "
-)
+shap_values <- shp$S%>%
+  as_tibble()%>%
+  rename_at(vars(everything()), ~ str_replace(., "$","_SHAP"))
 
+testing_set_2 <- shp$X%>%
+  as_tibble()
 
-# Replace 'female' and 'male'
-rownames(vi$importance) <- gsub("male", "Male", rownames(vi$importance))
-rownames(vi$importance) <- gsub("feMale", "Female", rownames(vi$importance))
+shap_values_final <- bind_cols(shap_values, testing_set_2)
 
+write_csv(shap_values_final, "LCS_results/SHAP_values.csv")
 
-for (term in names(specific_replacements)) {
-  rownames(vi$importance) <- gsub(term, specific_replacements[term], rownames(vi$importance))
-}
+# 6.5 Variable importance plots ####
 
-# Replace prefixes
-for (prefix in names(replacements)) {
-  rownames(vi$importance) <- gsub(paste0("^", prefix), replacements[prefix], rownames(vi$importance))
-}
+shap_values_0 <- read_csv("LCS_results/SHAP_values.csv")
 
-rownames(vi$importance) <- gsub("Electricity _", "Electricity Source: ", rownames(vi$importance))
-rownames(vi$importance) <- gsub("Electricity f_", "Free Electricity: ", rownames(vi$importance))
+shap_values <- shap_values_0 %>%
+  select(ends_with("_SHAP"))%>%
+  summarise_all(~ mean(abs(.)))%>%
+  pivot_longer(everything(), names_to = "variable", values_to = "SHAP_contribution")%>%
+  arrange(desc(SHAP_contribution))%>%
+  mutate(tot_contribution = sum(SHAP_contribution))%>%
+  mutate(share_SHAP       = SHAP_contribution/tot_contribution)%>%
+  select(-tot_contribution)
 
+shap_values_1 <- shap_values %>%
+  mutate(var_1 = ifelse(variable %in% c("hh_size", "hh_expenditures_USD_2014") | grepl("sex_hhh", variable) | grepl(".01", variable), NA, str_remove(variable, "^[^_]*")))%>%
+  mutate(var_1 = str_remove(var_1, "_X"))%>%
+  mutate(var_1 = str_remove(var_1, "_"))%>%
+  mutate(var_1 = str_remove(var_1, "hhh_"))%>%
+  mutate(var_1 = str_remove(var_1, "free_"))%>%
+  mutate(var_1 = str_replace_all(var_1, "\\.", " "))%>%
+  mutate(var_0 = ifelse(variable %in% c("hh_size", "hh_expenditures_USD_2014") | grepl("sex_hhh", variable) | grepl(".01", variable), str_remove(variable, "_X."), str_remove(variable, "_.*")))%>%
+  select(var_0, var_1, everything(), -variable)%>%
+  rename(Variable = var_0)%>%
+  mutate(Var_0 = ifelse(grepl("District", Variable), "District", 
+                        ifelse(grepl("province", Variable), "Province", 
+                               ifelse(grepl("ISCED", Variable), "ISCED", 
+                                      ifelse(grepl("ethnicity", Variable), "Ethnicity", 
+                                             ifelse(grepl("Religion", Variable), "Religion", 
+                                                    ifelse(Variable == "hh_expenditures_USD_2014", "HH expenditures",
+                                                           ifelse(Variable == "hh_size", "HH size",
+                                                                  ifelse(grepl("car.01", Variable), "Car own.",
+                                                                         ifelse(grepl("urban_01", Variable), "Urban",
+                                                                                ifelse(grepl("gender", Variable), "Gender HHH",
+                                                                                       ifelse(grepl("CF_", Variable), "Cooking", 
+                                                                                              ifelse(grepl("HF_", Variable), "Heating", 
+                                                                                                     ifelse(grepl("LF_", Variable), "Lighting", 
+                                                                                                            ifelse(Variable == "electricity", "Electricity access", Variable)))))))))))))))%>%
+  mutate(Var_0 = ifelse(Var_0 == "religiosity", "Religiosity",
+                        ifelse(Var_0 %in% c("refrigerator.01", "ac.01", "tv.01", "washing_machine.01"), "Appliance own.", 
+                               ifelse(Var_0 == "motorcycle.01", "Motorcycle own.", 
+                                      ifelse(Var_0 == "stove.01", "Stove own.", Var_0)))))%>%
+  mutate(order_number = 1:n())%>%
+  group_by(Var_0)%>%
+  mutate(order_number_2 = min(order_number))%>%
+  ungroup()%>%
+  arrange(order_number_2, order_number)%>%
+  rename(Var_1 = var_1)%>%
+  select(Var_0, Var_1, everything(), - Variable)%>%
+  select(-order_number, -order_number_2)
 
+shap_values_2 <- shap_values_1 %>%
+  group_by(Var_0)%>%
+  summarise_at(vars(share_SHAP), ~ sum(.))%>%
+  ungroup()%>%
+  mutate(help_0 = ifelse(share_SHAP < 0.025,1,0))%>%
+  arrange(desc(share_SHAP))%>%
+  mutate(Var_0 = case_when(Var_0 == "CF"  ~ "Cooking fuel",
+                           Var_0 == "HFS" ~ "Heating fuel (space)",
+                           Var_0 == "HFW" ~ "Heating fuel (water)",
+                           Var_0 == "LF"  ~ "Lighting fuel",
+                           TRUE ~ Var_0))%>%
+  mutate(order = 1/1:n())%>%
+  mutate(cumsum_0 = cumsum(share_SHAP))
 
-# Plot important variables
-plot(vi, main="Variable Importance with Random Forest")
+P_1 <- ggplot(shap_values_2)+
+  geom_col(aes(x = share_SHAP, y = reorder(Var_0, order), fill = factor(help_0)), width = 0.7, colour = "black", size = 0.3)+
+  theme_bw()+
+  coord_cartesian(xlim = c(0,0.5))+
+  scale_fill_manual(values = c("#E18727FF","#6F99ADFF"))+
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1), expand = c(0,0))+
+  guides(fill = "none")+
+  xlab("Variable importance (SHAP)")+
+  ylab("Variable")+
+  # ggtitle(paste0("Cluster ", data_8.5.2.C$cluster[data_8.5.2.C$Country == i],
+  #                ": ", Country.Set$Country_long[Country.Set$Country == i]), " (")+
+  theme(axis.text.y = element_text(size = 8), 
+        axis.text.x = element_text(size = 8),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 9),
+        plot.title.position = "plot",
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        #panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"),
+        panel.border = element_rect(size = 0.3))
 
-
-p <- ggplot(data= vi, aes(x=rownames(vi), y=Overall)) +
-  geom_bar(position="dodge", stat="identity", width=0.9, color="white") +
-  geom_point(color='black', size=3) +
-  xlab("") +
-  ggtitle("Variable Importance") +
-  scale_y_continuous(breaks=seq(0, 100, by=10), expand = c(0, 0)) +
-  scale_x_discrete(expand = c(0, 0)) +
-  expand_limits(y = c(0, 105)) +
-  geom_hline(yintercept=seq(0, 100, by=5), linetype="dotted", color="grey50") +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  coord_flip()
-
-# Plot
-plot(p)
-
-# Save
-png("RF_importance.png", family = "sans", units = "cm",
-    width = 17.35, height = 23.35, pointsize = 18, res = 300)
-print(p)
+jpeg("plots_GTAP11/Variable_Importance_ZAF.jpg", width = 15.5, height = 10, unit = "cm", res = 300)
+print(P_1)
 dev.off()
 
+# sv_importance(shap_values, kind = "bar")
 
-    
+# 6.6 Partial dependence plots ####
 
-######################################################################################
+data_6.6 <- shap_values_final %>%
+  left_join(test_set)%>%
+  filter(hh_expenditures_USD_2014 < 50000)%>%
+  mutate(sd_exp   = sd(hh_expenditures_USD_2014),
+         mean_exp = mean(hh_expenditures_USD_2014))%>%
+  mutate(z_score  = (hh_expenditures_USD_2014 - mean_exp)/sd_exp)%>%
+  # Car ownership
+  mutate(car.01 = ifelse(car.01 == 0, "No car", "Owns a car"))%>%
+  # Province
+  mutate(province_short = case_when(province == "Gauteng" ~ "GP",
+                                    province == "Free State" ~ "FS",
+                                    province == "Eastern Cape" ~ "EC",
+                                    province == "Kwazulu Natal" ~ "KZN",
+                                    province == "Limpopo" ~ "LP",
+                                    province == "Mpumalanga" ~ "MP",
+                                    province == "Northern Cape" ~ "NC",
+                                    province == "North-West" ~ "NW",
+                                    province == "Western Cape" ~ "WC"))%>%
+  mutate(province = factor(province, levels = c("Gauteng", "Free State", "Kwazulu Natal", "Limpopo", "North-West",
+                                                "Mpumalanga", "Northern Cape", "Eastern Cape", "Western Cape")))%>%
+  mutate(province_short = factor(province_short, levels = c("GP", "FS", "KZN", "LP", "NW",
+                                                  "MP", "NC", "EC", "WC")))%>%
+  mutate(province_SHAP = province_Free.State_SHAP + province_Gauteng_SHAP + province_Kwazulu.Natal_SHAP + province_Limpopo_SHAP + province_Northern.Cape_SHAP + province_Western.Cape_SHAP + province_Mpumalanga_SHAP + province_North.West_SHAP)%>%
+  # mutate(province_SHAP = ifelse(province == "Free State"      , province_Free.State_SHAP, 0))%>%
+  # mutate(province_SHAP = ifelse(province == "Gauteng"            , province_Gauteng_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "Kwazulu Natal"      , province_Kwazulu.Natal_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "Limpopo"            , province_Limpopo_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "Northern Cape"      , province_Northern.Cape_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "Eastern Cape"       , province_Western.Cape_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "North-West"         , province_North.West_SHAP, province_SHAP))%>%
+  # mutate(province_SHAP = ifelse(province == "Mpumalanga"         , province_Mpumalanga_SHAP, province_SHAP))%>%
+  # Electricity
+  mutate(electricity_SHAP = electricity_other_SHAP + electricity_No.access_SHAP)%>%
+  #mutate(electricity_SHAP = ifelse(electricity == "Solar" | electricity == "Other", electricity_other_SHAP,0))%>%
+  #mutate(electricity_SHAP = ifelse(electricity == "No access", electricity_No.access_SHAP,electricity_SHAP))%>%
+  mutate(electricity = ifelse(electricity == "Solar", "Other", electricity))%>%
+  mutate(electricity = factor(electricity, levels = c("Mains", "No access", "Other")))%>%
+  # Ethnicity
+  mutate(ethnicity_SHAP = ethnicity_hhh_White_SHAP + ethnicity_hhh_Coloured_SHAP + ethnicity_hhh_other_SHAP)%>%
+  # mutate(ethnicity_SHAP = ifelse(ethnicity_hhh == "White",    ethnicity_hhh_White_SHAP, 0))%>%
+  # mutate(ethnicity_SHAP = ifelse(ethnicity_hhh == "Coloured", ethnicity_hhh_Coloured_SHAP, ethnicity_SHAP))%>%
+  # mutate(ethnicity_SHAP = ifelse(ethnicity_hhh == "Indian/Asian",    ethnicity_hhh_other_SHAP, ethnicity_SHAP))%>%
+  mutate(ethnicity_hhh = factor(ethnicity_hhh, levels = c("African-black", "Indian/Asian", "Coloured", "White")))%>%
+  # Heating fuel (space)
+  mutate(HFS_SHAP = HFS_Other_SHAP + HFS_Paraffin_SHAP + HFS_Wood_SHAP + HFS_other_SHAP)%>%
+  mutate(HFS = ifelse(HFS %in% c("Biomass", "Coal", "Gas", "Solar energy", "Other"), "Other", HFS))%>%
+  mutate(HFS = factor(HFS, levels = c("Electricity", "Wood", "Paraffin", "Other")))
+  
+P_2.1 <- ggplot(filter(data_6.6, hh_expenditures_USD_2014 < 30000), 
+                aes(y = hh_expenditures_USD_2014_SHAP, x = hh_expenditures_USD_2014, fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  #geom_point()+
+  geom_point(size = 0.5)+
+  geom_smooth(method = "loess", color = "black", size = 0.4, se = FALSE,
+              formula = y ~ x)+
+  coord_cartesian(xlim = c(0,32000))+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  scale_x_continuous(labels = scales::dollar_format(), expand = c(0,0))+
+  xlab("Household expenditures in US-$ (2014)")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
 
+jpeg("plots_GTAP11/PDP_EXP_ZAF.jpg", width = 10, height = 10, unit = "cm", res = 300)
+print(P_2.1)
+dev.off()
 
+# Car ownership
+P_2.2 <- ggplot(data = data_6.6, aes(fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  geom_jitter(aes(x = as.factor(car.01),
+                   y = car.01_SHAP), height = 0, width = 0.25, shape = 21, size = 0.5)+
+  # geom_boxplot(aes(x = as.factor(car.01), y = car.01_SHAP), width = 0.2, alpha = 0.5)+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  scale_y_continuous(breaks = c(seq(-0.01,0.06,0.01)), expand = c(0,0))+
+  coord_cartesian(ylim = c(-0.018,0.065))+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  xlab("Car ownership")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+# Province
+
+P_2.3 <- ggplot(data = data_6.6, aes(fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  geom_jitter(aes(x = as.factor(province_short),
+                  y = province_SHAP), height = 0, width = 0.25, shape = 21, size = 0.5)+
+  # geom_boxplot(aes(x = as.factor(car.01), y = car.01_SHAP), width = 0.2, alpha = 0.5)+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  scale_y_continuous(breaks = c(seq(-0.01,0.015,0.005)), expand = c(0,0))+
+  coord_cartesian(ylim = c(-0.012,0.018))+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  xlab("Province")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+# Electricity access
+
+P_2.4 <- ggplot(data = data_6.6, aes(fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  geom_jitter(aes(x = electricity,
+                  y = electricity_SHAP), height = 0, width = 0.25, shape = 21, size = 0.5)+
+  # geom_boxplot(aes(x = as.factor(car.01), y = car.01_SHAP), width = 0.2, alpha = 0.5)+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  scale_y_continuous(breaks = c(seq(-0.02,0.015,0.005)), expand = c(0,0))+
+  coord_cartesian(ylim = c(-0.02,0.0051))+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  xlab("Province")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+# Ethnicity
+
+P_2.5 <- ggplot(data = data_6.6, aes(fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  geom_jitter(aes(x = ethnicity_hhh,
+                  y = ethnicity_SHAP), height = 0, width = 0.25, shape = 21, size = 0.5)+
+  # geom_boxplot(aes(x = as.factor(car.01), y = car.01_SHAP), width = 0.2, alpha = 0.5)+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  scale_y_continuous(breaks = c(seq(-0.01,0.02,0.005)), expand = c(0,0))+
+  coord_cartesian(ylim = c(-0.01,0.02))+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  xlab("Self-identified ethnicity of household head")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 5),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+# Heating fuel (space)
+
+P_2.6 <- ggplot(data = data_6.6, aes(fill = z_score, colour = z_score))+
+  geom_hline(aes(yintercept = 0))+
+  geom_jitter(aes(x = HFS,
+                  y = HFS_SHAP), height = 0, width = 0.25, shape = 21, size = 0.5)+
+  # geom_boxplot(aes(x = as.factor(car.01), y = car.01_SHAP), width = 0.2, alpha = 0.5)+
+  theme_bw()+
+  scale_colour_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  scale_fill_viridis_c(option = "inferno", begin = 0.25, end = 0.85)+
+  guides(colour = "none", fill = "none")+
+  scale_y_continuous(breaks = c(seq(-0.01,0.02,0.005)), expand = c(0,0))+
+  coord_cartesian(ylim = c(-0.01,0.01))+
+  #ggtitle(paste0(labels_dataframe$title[labels_dataframe$Var_1 == "HH expenditures"]))+
+  xlab("Main heating fuel for space")+
+  ylab("SHAP value for household expenditures")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 8),
+        plot.subtitle = element_text(size = 6),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+P_2 <- ggarrange(P_2.2, P_2.1, P_2.3, P_2.4, P_2.5, P_2.6, ncol = 3, nrow = 2)
+
+jpeg("plots_GTAP11/PDP_ZAF.jpg", width = 20, height = 15, unit = "cm", res = 300)
+print(P_2)
+dev.off()
+
+# sv_dependence(shp, v = "ethnicity_hhh_White", color_var = "auto")
+
+# Waterfall plot interesting for clustering
+
+# sv_waterfall(shp, shp$X$car.01 == 1)
 
 ## 6.3. Cluster Analysis ####
 
@@ -344,7 +574,7 @@ set.seed(2)
 household_c <- household2
 household_c1 <- household2
 
-
+# Need gower distance here.
 
 #  6.3.1. Number of Clusters
 
