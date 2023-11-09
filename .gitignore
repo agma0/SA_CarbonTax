@@ -7,3 +7,7 @@ LCS_results/household_information_South Africa.csv
 LCS_results/Carbon_Pricing_Incidence_South Africa.csv
 LCS_results/expenditure_information_sa.csv
 LCS_results/household_information_sa.csv
+LCS_results/hh_final_LCS.csv
+LCS_results/SHAP_values.csv
+LCS_results/Clusters_ID_ZAF.csv
+LCS_results/Carbon_Pricing_Incidence_South Africa.csv
