@@ -16,6 +16,7 @@ library(tidymodels)
 library(kernelshap)
 library(shapviz)
 library("ggsci")
+library("Hmisc")
 
 
 #### CHANGE PATH ####
@@ -26,7 +27,7 @@ library("ggsci")
 household_all <- read_csv("LCS_results/hh_final_LCS.csv")
 
 household_all <- household_all %>% 
-  select(hh_id, hh_expenditures_USD_2014, 
+  select(hh_id, hh_expenditures_USD_2014, hh_weights, hh_size,
          # exp_CO2_national, 
          burden_CO2_national, 
          province, urban_1, 
@@ -38,7 +39,7 @@ household_all <- household_all %>%
 
 # 6.1 Pre-Processing - transforming data with recipes and splitting data ####
 
-household_all_1 <- household_all %>%
+household_all_0 <- household_all %>%
   mutate(province = ifelse(province == '1', "Western Cape", 
                            ifelse(province == "2", 'Eastern Cape',  
                                   ifelse(province == "3", 'Northern Cape',  
@@ -60,7 +61,7 @@ household_all_1 <- household_all %>%
                                    education_hhh < 29 ~ "6",
                                    education_hhh < 30 ~ "7",
                                    education_hhh < 31 ~ "8",
-                                   education_hhh > 39 ~ "9"))%>%
+                                   education_hhh > 30 ~ "9"))%>%
   mutate(car.01  = ifelse(own_vehicle == 1,1,0))%>%
   mutate(stove.01 = ifelse(own_stove   == 1,1,0))%>%
   mutate(electricity = case_when(electricitymains == 1  ~ "Mains",
@@ -99,7 +100,10 @@ household_all_1 <- household_all %>%
                          TRUE ~ "Other"))%>%
   mutate(urban_01 = ifelse(urban_1 == 1 | urban_1 == 2, "Urban", "Rural"))%>%
   select(-own_vehicle, -own_stove, -electricitymains, -electricitysource, -electricitycon, -lightingsource, -cookingsource,
-         -heatingsourcewater, -heatingsourcespace, -log_expenditures, -electricityfree, -urban_1, -hh_id)
+         -heatingsourcewater, -heatingsourcespace, -log_expenditures, -electricityfree, -urban_1)
+
+household_all_1 <- household_all_0 %>%
+  select(-hh_id, -hh_weights, -hh_size)
 
 set.seed(2023)
 
@@ -567,183 +571,256 @@ dev.off()
 
 # sv_waterfall(shp, shp$X$car.01 == 1)
 
-## 6.3. Cluster Analysis ####
+# 6.7. Cluster Analysis ####
 
-set.seed(2)
+# One option: gower distance
 
-household_c <- household2
-household_c1 <- household2
+# Preferable option: one-hot-encoding
 
-# Need gower distance here.
+set.seed(2023)
 
-#  6.3.1. Number of Clusters
+household_6.7 <- household_all_1 %>%
+  select(-burden_CO2_national)%>%
+  # One-hot-encoding for Province
+  mutate(value = 1)%>%
+  pivot_wider(names_from = "province", values_from = "value", names_prefix = "province_", values_fill = 0)%>%
+  select(-'province_Kwazulu Natal')%>%
+  # gender_hhh
+  # mutate(gender_hhh_Female = ifelse(gender_hhh == "Female",1,0))%>%
+  select(-gender_hhh)%>%
+  # ethnicity_hhh
+  mutate(value = 1)%>%
+  pivot_wider(names_from = "ethnicity_hhh", values_from = "value", names_prefix = "ethnicity_", values_fill = 0)%>%
+  select(-'ethnicity_African-black')%>%
+  # electricity
+  mutate(electricity_No_access = ifelse(electricity == "No access",1,0),
+         electricity_Other     = ifelse(electricity == "Other" | electricity == "Solar",1,0))%>%
+  select(-electricity)%>%
+  # electricity_free
+  mutate(electricity_Free = ifelse(electricity_free == "Free electricity",1,0))%>%
+  select(-electricity_free)%>%
+  # LF 
+  # mutate(LF_Candles = ifelse(LF == "Candles",1,0))%>%
+  # mutate(LF_Other   = ifelse(LF %in% c("Gas", "Solar", "Other"),1,0))%>%
+  select(-LF)%>%
+  # CF
+  # mutate(CF_Wood     = ifelse(CF == "Wood",1,0),
+  #        CF_Paraffin = ifelse(CF == "Paraffin",1,0),
+  #        CF_Other    = ifelse(!CF %in% c("Paraffin", "Wood", "Electricity"),1,0))%>%
+  select(-CF)%>%
+  # HFW --> relatively uninteresting
+  # mutate(HFW_Wood = ifelse(HFW == "Wood",1,0),
+  #        HFW_Other = ifelse(HFW != "Wood" & HFW != "Electricity",1,0))%>%
+  select(-HFW) %>%
+  # HFS
+  mutate(HFS_Paraffin = ifelse(HFS == "Paraffin",1,0),
+         HFS_Wood     = ifelse(HFS == "Wood",1,0),
+         HFS_Other    = ifelse(!HFS %in% c("Wood", "Paraffin", "Electricity"),1,0))%>%
+  select(-HFS)%>%
+  # urban_01
+  mutate(urban_01_Rural = ifelse(urban_01 == "Rural",1,0))%>%
+  select(-urban_01)%>%
+  # education_hhh
+  # mutate(education_Primary         = ifelse(education_hhh == "1",1,0),
+  #        education_Upper_secondary = ifelse(education_hhh == "3",1,0),
+  #        education_Post_secondary  = ifelse(education_hhh %in% c("4","6","7","8"),1,0),
+  #        education_Other           = ifelse(education_hhh %in% c("9"),1,0))%>%
+  select(-education_hhh)%>%
+  select(-stove.01)%>%
+  mutate_at(vars(everything()), ~ (. - mean(.))/sd(.))
 
-household_c2 <- household_c %>%
-  dplyr::select(-burden_CO2_national)
+# 6.7.1 Clustering #####
 
-household_c3 <- household_c %>%
-  dplyr::select(-burden_CO2_national)
+data_6.7.1 <- data.frame()
 
-
-# Silhoulette Method - result  3 (0.16) or 7 (0.12)
-silhouette_score <- function(k) {
-  model <- kmeans(household_c2, centers=k)
-  ss <- silhouette(model$cluster, dist(household_c2))
-  mean(ss[, 3])
+for(k in 2:30){
+  model_6.7 <- kmeans(household_6.7, centers = k, nstart = 50)
+  
+  # total within-cluster sum of squares
+  
+  tot_within_ss <- model_6.7$tot.withinss
+  
+  # Silhouette
+  
+  silhouette_1 <- mean((cluster::silhouette(model_6.7$cluster, dist(household_6.7)))[,3])
+  
+  data_6.7.1 <- bind_rows(data_6.7.1,
+                          data.frame(k_0             = k,
+                                     tot_within_ss_0 = tot_within_ss,
+                                     silhouette_0    = silhouette_1))
+  print(k)
 }
-k <- 2:10
 
-plot(k, sapply(k, silhouette_score), type='b')
+P_6.7.1 <- ggplot(data_6.7.1)+
+  geom_vline(aes(xintercept = data_6.7.1$k[silhouette_0 == max(silhouette_0)]))+
+  geom_line(aes(x = k_0, y = silhouette_0))+
+  geom_point(aes(x = k_0,y = silhouette_0), shape = 21, size = 1.5)+
+  scale_fill_manual(values = c("#0072B5FF", "#BC2C29FF"))+
+  guides(fill = "none")+
+  xlab("Number of clusters (k)")+
+  ylab("Average silhouette width")+
+  coord_cartesian(ylim = c(min(data_6.7.1$silhouette_0)*0.8, 0.5),
+                  xlim = c(0,30.5))+
+  scale_x_continuous(expand = c(0,0), breaks = seq(0,30,5), minor_breaks = seq(0,30,1))+
+  scale_y_continuous(expand = c(0,0.01))+
+  theme_bw()+
+  ggtitle("Silhouette plot")+
+  theme(axis.text.y = element_text(size = 6), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 11),
+        legend.position = "bottom",
+        # strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        # panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.3,0.3,0.3,0.3), "cm"),
+        panel.border = element_rect(size = 0.3))
 
+# 14 clusters can be justified
 
+model_6.7.1      <- kmeans(household_6.7, centers = 14, nstart = 2000)
+silhouette_6.7.1 <- cluster::silhouette(model_6.7.1$cluster, dist(household_6.7))[,3]
 
-# Elbow Method - result 8
-wss <- (nrow(household_c3)-1)*sum(apply(household_c3,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(household_c3, 
-                                     centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters",
-     ylab="Within groups sum of squares")
+household_6.7.1 <- household_all_0 %>%
+  mutate(cluster    = model_6.7.1$cluster,
+         silhouette = silhouette_6.7.1)
 
-
-
-# 
-# # create 8 clusters
-# kmeans_result <- kmeans(household_c, centers = 8)
-# 
-# # add the cluster labels to data frame
-# household_c$cluster <- kmeans_result$cluster
-# 
-# # Count of households in each cluster
-# cluster_counts <- table(household_c$cluster)
-# print(cluster_counts)
-# 
-# # mean burden_co2_national for each cluster
-# means <- aggregate(household_c$burden_CO2_national ~ household_c$cluster, FUN = mean)
-# print(means)
-# 
-# # get means of all variables
-# cluster_summary <- aggregate(. ~ cluster, data = household_c, mean)
-# 
-# 
-# # Filter to only keep variables where at least one cluster has a mean above 0.5
-# vars_to_keep <- colSums(cluster_summary > 0.5) > 0
-# 
-# # Subset the data to only these variables
-# cluster_summary_subset <- cluster_summary[, vars_to_keep]
-# 
-# # Convert cluster to factor 
-# cluster_summary_subset$cluster <- as.factor(cluster_summary_subset$cluster)
-
-
-
-#### create cluster without burden #######################
-
-# Scal Variables to have equal weightage across all variables - exclude burden_CO2_national
-scaled_data <- as.data.frame(scale(select(household_c1, -burden_CO2_national)))
-
-# Create 4 clusters using the scaled data
-kmeans_result1 <- kmeans(scaled_data, centers = 4)
-
-# Add the cluster labels back to the original data frame
-household_c1$cluster <- kmeans_result1$cluster
-
-# Count of households in each cluster
-cluster_counts1 <- table(household_c1$cluster)
-print(cluster_counts1)
-
-# Calculate mean burden_co2_national for each cluster using the original data
-means1 <- aggregate(burden_CO2_national ~ cluster, data = household_c1, FUN = mean)
-print(means1)
-
-# Get the means of all variables in each cluster
-cluster_summary1 <- aggregate(. ~ cluster, data = household_c1, mean)
-
-#add burden co2 as percent
-cluster_summary1$burden_CO2_national <- cluster_summary1$burden_CO2_national*100
-
-
-# Pivot the data to wider format
-cluster_summary <- cluster_summary1 %>%
-  pivot_longer(cols = -cluster, names_to = "variable", values_to = "value") %>%
-  pivot_wider(names_from = cluster, values_from = value)
-
-# Save to CSV
-write.csv(cluster_summary, "cluster_all.csv", row.names = FALSE)
-
-
-
-# # Filter to only keep variables where at least one cluster has a mean above 0.5
-# vars_to_keep1 <- colSums(cluster_summary1 > 0.5) > 0
-# 
-# # Subset the data to only these variables
-# cluster_summary_subset1 <- cluster_summary1[, vars_to_keep1]
-# 
-# # Convert cluster to factor 
-# cluster_summary_subset1$cluster <- as.factor(cluster_summary_subset1$cluster)
-# 
-
-# # Pivot the data to wider format
-# cluster_summary_sub <- cluster_summary_subset1 %>%
-#   pivot_longer(cols = -cluster, names_to = "variable", values_to = "value") %>%
-#   pivot_wider(names_from = cluster, values_from = value)
-# 
-# # Save to CSV
-# write.csv(cluster_summary_sub, "cluster_sub.csv", row.names = FALSE)
-# 
-
-
-
-#### Plots not used
-
-# Create plot
-ggparcoord(cluster_summary_subset1, columns = 2:ncol(cluster_summary_subset1), groupColumn = 1, scale = "globalminmax", alpha = 1) +
-  scale_color_discrete(name = "Cluster") +
-  scale_y_continuous(breaks = seq(0, 10, by = 1)) + 
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") +
-  theme_minimal() + 
-  geom_path(size = 1)+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-
-
-# Convert data into 'long' format
-long_data <- gather(cluster_summary_subset1, variable, value, -cluster)
-
-# Convert 'variable' to a factor and specify order of levels
-long_data$variable <- factor(long_data$variable, levels = unique(long_data$variable))
-long_data$variable <- factor(long_data$variable, levels = rev(levels(long_data$variable)))
-
-
-# Add an index column that indicates the order of rows within each cluster
-long_data <- long_data %>%
-  group_by(cluster) %>%
-  mutate(index = row_number()) %>%
+household_6.7.2 <- household_6.7.1 %>%
+  group_by(cluster)%>%
+  summarise(number = n(),
+            silhouette = mean(silhouette))%>%
   ungroup()
 
+# Household expenditures, car ownership, province, ethnicity, electricity access, free electricity, HFS
 
-# Dot plot
-ggplot(long_data, aes(x = value, y = variable, group = as.factor(cluster))) +
-  geom_path(aes(color = as.factor(cluster))) +
-  geom_point(aes(color = as.factor(cluster)), size=3) +
-  geom_vline(xintercept = 1, linetype = "dashed", color = "black") +
-  geom_vline(xintercept = 0.5, linetype = "dashed", color = "grey") +
-  theme_minimal() +
-  labs(color = "Cluster")
+household_6.7.3 <- household_6.7 %>%
+  mutate(cluster = model_6.7.1$cluster)%>%
+  group_by(cluster)%>%
+  summarise_all(~mean(.))%>%
+  ungroup()%>%
+  pivot_longer(-cluster, names_to = "Type", values_to = "value")
 
+household_6.7.4 <- household_6.7 %>%
+  mutate(cluster    = model_6.7.1$cluster,
+         silhouette = silhouette_6.7.1)%>%
+  group_by(cluster)%>%
+  summarise(number = n(),
+            silhouette = mean(silhouette))%>%
+  ungroup()%>%
+  arrange(desc(number))%>%
+  mutate(cluster_NEW = LETTERS[1:n()])
 
+cluster_code <- select(household_6.7.4, cluster_NEW, cluster)
 
-# Bar Plot
-ggplot(long_data, aes(x = variable, y = value, fill = as.factor(cluster))) +
-  geom_bar(stat = "identity", position = "dodge", color = "black") + # Bar plot with black borders
-  geom_hline(yintercept = 0.5, linetype = "dashed", color = "grey") + # Line at y = 0.5
-  geom_hline(yintercept = 1, linetype = "dashed", color = "black") + # Line at y = 1
-  scale_y_continuous(breaks = seq(floor(min(long_data$value)), ceiling(max(long_data$value)), by = 1)) + # Y-axis breaks by 1
-  theme_minimal() +
-  labs(fill = "Cluster") +
-  coord_flip() # Flip the axes to make the bars horizontal
+household_clusters <- left_join(household_6.7.1, cluster_code)%>%
+  select(hh_id, cluster_NEW)
 
+write_csv(household_clusters, "LCS_results/Clusters_ID_ZAF.csv")
 
+household_6.7.5 <- household_6.7.1 %>%
+  left_join(cluster_code)%>%
+  group_by(cluster_NEW)%>%
+  summarise(y5  = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.05),
+            y25 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.25),
+            y50 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.5),
+            y75 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.75),
+            y95 = wtd.quantile(burden_CO2_national, weights = hh_weights, probs = 0.95),
+            mean = wtd.mean(burden_CO2_national,    weights = hh_weights))%>%
+  ungroup()
 
-# Clean Environment
-rm(list=ls())
+ggplot(household_6.7.5, aes(x = reorder(cluster_NEW,y50)))+
+  #geom_rect(aes(ymin = min_median, ymax = max_median), xmin = 0, xmax = 6, alpha = 0.2, fill = "lightblue", inherit.aes = FALSE)+
+  geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), fill = "#0072B5FF",
+               stat = "identity", position = position_dodge(0.5), outlier.shape = NA, width = 0.5, size = 0.3, alpha = 0.7) +
+  theme_bw()+
+  ylab("Carbon pricing burden")+ xlab("Cluster")+
+  geom_point(aes(y = mean), shape = 23, size = 2, stroke = 0.3, fill = "white")+
+  scale_y_continuous(expand = c(0,0), labels = scales::percent_format(accuracy = 1))+
+  # scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
+  coord_flip(ylim = c(0,0.1501))+
+  ggtitle("")+
+  theme(axis.text.y = element_text(size = 7), 
+        axis.text.x = element_text(size = 6),
+        axis.title  = element_text(size = 7),
+        plot.title = element_text(size = 11),
+        legend.position = "bottom",
+        strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"),
+        panel.border = element_rect(size = 0.3))
 
+# For each cluster: Burden with carbon tax, full lump sum transfer, full CO2 tax electricity compensation
+# Bar chart showing key features of particular cluster
+# 6.8 Revenue recycling ####
+
+household_6.8.0 <- read_csv("LCS_results/hh_final_LCS.csv")%>%
+  select(hh_id, exp_CO2_national, burden_CO2_electricity, hh_size, hh_weights)%>%
+  # Weights of total CO2 expenditures
+  mutate(exp_CO2_national_weighted = exp_CO2_national*hh_weights)%>%
+  # Total population
+  mutate(population                = hh_size*hh_weights)
+
+transfer_0 <- sum(household_6.8.0$exp_CO2_national_weighted)/sum(household_6.8.0$population)*0.25
+
+household_6.8 <- household_6.7.1 %>%
+  left_join(select(household_6.8.0, hh_id, exp_CO2_national, burden_CO2_electricity), by = "hh_id")%>%
+  left_join(cluster_code, by = "cluster")%>%
+  select(hh_id, cluster_NEW, everything(), burden_CO2_national)%>%
+  select(-cluster)%>%
+  # Compensation through exempting electricity prices
+  mutate(burden_CO2_national_rev_electricity = burden_CO2_national - burden_CO2_electricity)%>%
+  # Compensation through lump-sum transfer
+  mutate(burden_CO2_national_rev_LST = burden_CO2_national - ((hh_size*transfer_0)/hh_expenditures_USD_2014))%>%
+  select(cluster_NEW, hh_weights, burden_CO2_national, burden_CO2_national_rev_LST, burden_CO2_national_rev_electricity)%>%
+  pivot_longer(c(starts_with("burden")), names_to = "Type", values_to = "values", names_prefix = "burden_")%>%
+  group_by(cluster_NEW, Type)%>%
+  summarise(y5  = wtd.quantile(values, weights = hh_weights, probs = 0.10),
+            y25 = wtd.quantile(values, weights = hh_weights, probs = 0.25),
+            y50 = wtd.quantile(values, weights = hh_weights, probs = 0.5),
+            y75 = wtd.quantile(values, weights = hh_weights, probs = 0.75),
+            y95 = wtd.quantile(values, weights = hh_weights, probs = 0.90),
+            mean = wtd.mean(values,    weights = hh_weights))%>%
+  ungroup()
+
+P_6.8 <- ggplot(household_6.8, aes(x = reorder(Type,y50), group = interaction(cluster_NEW, Type), fill = Type))+
+  geom_hline(aes(yintercept = 0))+
+  #geom_rect(aes(ymin = min_median, ymax = max_median), xmin = 0, xmax = 6, alpha = 0.2, fill = "lightblue", inherit.aes = FALSE)+
+  geom_boxplot(aes(ymin = y5, lower = y25, middle = y50, upper = y75, ymax = y95), 
+               stat = "identity", position = position_dodge(0.7), outlier.shape = NA, width = 0.5, size = 0.3, alpha = 0.7) +
+  theme_bw()+
+  facet_wrap(. ~ cluster_NEW, ncol = 5)+
+  ylab("Additional costs to households")+ xlab("")+
+  geom_point(aes(y = mean), shape = 23, size = 1.5, stroke = 0.5, fill = "white", position = position_dodge (0.5))+
+  scale_fill_nejm(labels = c("No compensation", "Excluding electricity sector", "Lump-sum transfer"), name = "Policy")+
+  scale_y_continuous(expand = c(0,0), labels = scales::percent_format(accuracy = 1))+
+  # scale_x_discrete(labels = c("1 \n Poorest \n 20 Percent", "2", "3", "4", "5 \n Richest \n 20 Percent"))+
+  coord_flip(ylim = c(-0.12,0.135))+
+  ggtitle("")+
+  theme(axis.text.y = element_blank(), 
+        axis.text.x = element_text(size = 7),
+        axis.title.x  = element_text(size = 7),
+        axis.title.y = element_blank(),
+        plot.title = element_text(size = 11),
+        legend.position = "bottom",
+        strip.text = element_text(size = 7),
+        #strip.text.y = element_text(angle = 180),
+        #panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.ticks = element_line(size = 0.2),
+        axis.ticks.y = element_blank(),
+        legend.text = element_text(size = 7),
+        legend.title = element_text(size = 7),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm"),
+        panel.border = element_rect(size = 0.3))
+
+jpeg("plots_GTAP11/Cluster_Compensation_ZAF.jpg", width = 20, height = 15, unit = "cm", res = 300)
+print(P_6.8)
+dev.off()
